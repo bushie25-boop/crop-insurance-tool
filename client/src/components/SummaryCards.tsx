@@ -3,10 +3,12 @@ import { useApp } from '../context/AppContext';
 import {
   calcGuaranteedRevenue,
   calcPremiumPerAcre,
+  calcGrossPremiumPerAcre,
+  calcGovtSubsidyPerAcre,
   calcSCOPremiumPerAcre,
   calcECOPremiumPerAcre,
-  calcTotalPremiumPerAcre,
   calcBreakevenYield,
+  getFarmerSubsidyPct,
 } from '../lib/insurance';
 
 const fmt = (n: number, decimals = 2) =>
@@ -39,11 +41,14 @@ export default function SummaryCards() {
   const { inputs } = useApp();
 
   const guaranteed = calcGuaranteedRevenue(inputs);
-  const basePremium = calcPremiumPerAcre(inputs);
+  const farmerBasePremium = calcPremiumPerAcre(inputs); // farmer's cost after RMA subsidy
+  const grossBasePremium = calcGrossPremiumPerAcre(inputs);
+  const govtSubsidy = calcGovtSubsidyPerAcre(inputs);
+  const subsidyPct = getFarmerSubsidyPct(inputs.coverageLevel);
   const scoPremium = calcSCOPremiumPerAcre(inputs);
   const ecoPremium = calcECOPremiumPerAcre(inputs);
-  const totalPremium = basePremium + scoPremium + ecoPremium;
-  const totalPremiumAll = totalPremium * inputs.acres;
+  const farmerTotal = farmerBasePremium + scoPremium + ecoPremium;
+  const farmerTotalAll = farmerTotal * inputs.acres;
   const breakevenYield = calcBreakevenYield(inputs);
 
   const isYP = inputs.planType === 'YP';
@@ -65,28 +70,39 @@ export default function SummaryCards() {
 
       <Card
         icon="💰"
-        title="Est. Premium / acre"
-        value={`$${fmt(totalPremium)}`}
+        title="Your Premium / acre"
+        value={`$${fmt(farmerTotal)}`}
         accent="text-amber-400"
-        sub={`$${fmt(totalPremiumAll, 0)} total for ${inputs.acres.toLocaleString()} ac`}
+        sub={`$${fmt(farmerTotalAll, 0)} total for ${inputs.acres.toLocaleString()} ac`}
         detail={
-          <div className="space-y-1 text-xs text-slate-400">
-            <div className="flex justify-between">
-              <span>{inputs.planType} underlying</span>
-              <span className="text-slate-300">${fmt(basePremium)}</span>
+          <div className="space-y-1 text-xs">
+            {/* Subsidy breakdown — the big selling point */}
+            <div className="flex justify-between text-slate-400">
+              <span>Total premium (gross)</span>
+              <span className="text-slate-300">${fmt(grossBasePremium)}/ac</span>
+            </div>
+            <div className="flex justify-between text-green-400 font-medium">
+              <span>🏛️ Govt pays ({Math.round(subsidyPct * 100)}%)</span>
+              <span className="text-green-300">${fmt(govtSubsidy)}/ac</span>
+            </div>
+            <div className="flex justify-between text-amber-300 font-bold">
+              <span>💰 Your cost</span>
+              <span>${fmt(farmerBasePremium)}/ac</span>
             </div>
             {inputs.scoEnabled && (
-              <div className="flex justify-between">
-                <span className="text-purple-400">+ SCO ({Math.round(inputs.coverageLevel*100)}%→86%)</span>
+              <div className="flex justify-between text-purple-400 mt-1 pt-1 border-t border-slate-700">
+                <span>+ SCO ({Math.round(inputs.coverageLevel*100)}%→86%)</span>
                 <span className="text-purple-300">${fmt(scoPremium)}</span>
               </div>
             )}
             {inputs.ecoLevel !== 'None' && (
-              <div className="flex justify-between">
-                <span className="text-teal-400">+ {inputs.ecoLevel} (86%→{inputs.ecoLevel === 'ECO-90' ? '90' : '95'}%)</span>
+              <div className="flex justify-between text-teal-400">
+                <span>+ {inputs.ecoLevel} (86%→{inputs.ecoLevel === 'ECO-90' ? '90' : '95'}%)</span>
                 <span className="text-teal-300">${fmt(ecoPremium)}</span>
               </div>
             )}
+            {/* Fix 4: Disclaimer */}
+            <p className="text-slate-500 italic text-[10px] pt-1">* Estimated. Actual premium determined at policy issuance by RMA.</p>
           </div>
         }
       />

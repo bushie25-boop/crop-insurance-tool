@@ -75,17 +75,8 @@ export function calcGuaranteedRevenue(inputs: InsuranceInputs): number {
 }
 
 export function calcPremiumPerAcre(inputs: InsuranceInputs): number {
-  const { crop, aphYield, coverageLevel, planType, unitStructure, springPrice } = inputs;
-  const baseRate = getBaseRate(crop, coverageLevel);
-  const planMult = getPlanMultiplier(planType);
-  const unitMult = UNIT_MULTIPLIERS[unitStructure];
-
-  // Liability basis
-  const liability = planType === 'YP'
-    ? aphYield * springPrice
-    : aphYield * springPrice;
-
-  return liability * baseRate * planMult * unitMult;
+  // Returns farmer cost after RMA subsidy (not gross premium)
+  return calcFarmerPremiumPerAcre(inputs);
 }
 
 export function calcMaxIndemnityPerAcre(inputs: InsuranceInputs): number {
@@ -136,13 +127,80 @@ export function calcIndemnity(
     return calcIndemnityYP(guaranteed, actualYield, inputs.springPrice);
   }
   if (inputs.planType === 'RP') {
-    // RP uses max(spring, harvest) as the price floor
-    const effectiveHarvest = Math.max(harvestPrice, inputs.springPrice);
-    return Math.max(0, guaranteed - actualYield * effectiveHarvest);
+    // RP: guarantee adjusts UP when harvest > spring (price rally protection)
+    // Guarantee = APH × cov% × max(spring, harvest)
+    // Indemnity  = max(0, Guarantee - actualYield × harvestPrice)
+    const rpGuarantee = inputs.aphYield * inputs.coverageLevel * Math.max(harvestPrice, inputs.springPrice);
+    return Math.max(0, rpGuarantee - actualYield * harvestPrice);
   }
-  // RP-HPE: no upside price protection
+  // RP-HPE: no harvest price upside — guarantee locked to spring price
   return Math.max(0, guaranteed - actualYield * harvestPrice);
 }
+
+/**
+ * Returns the RP guarantee adjusted to the given harvest price.
+ * Use this to show "what is my guarantee worth right now?" mid-season.
+ */
+export function calcRPGuaranteeAtPrice(inputs: InsuranceInputs, harvestPrice: number): number {
+  return inputs.aphYield * inputs.coverageLevel * Math.max(inputs.springPrice, harvestPrice);
+}
+
+// ─── RMA Subsidy Schedule ────────────────────────────────────────────────────
+// Source: USDA RMA — farmer pays (1 - subsidy%) of gross premium
+export const RMA_SUBSIDY_SCHEDULE: Record<number, number> = {
+  0.50: 0.67,
+  0.55: 0.64,
+  0.60: 0.64,
+  0.65: 0.59,
+  0.70: 0.59,
+  0.75: 0.55,
+  0.80: 0.48,
+  0.85: 0.38,
+};
+
+export function getFarmerSubsidyPct(coverageLevel: number): number {
+  const key = Math.round(coverageLevel * 100) / 100;
+  return RMA_SUBSIDY_SCHEDULE[key] ?? 0.55;
+}
+
+export function calcGrossPremiumPerAcre(inputs: InsuranceInputs): number {
+  const { crop, aphYield, coverageLevel, planType, unitStructure, springPrice } = inputs;
+  const baseRate = getBaseRate(crop, coverageLevel);
+  const planMult = getPlanMultiplier(planType);
+  const unitMult = UNIT_MULTIPLIERS[unitStructure];
+  const liability = aphYield * springPrice;
+  return liability * baseRate * planMult * unitMult;
+}
+
+export function calcFarmerPremiumPerAcre(inputs: InsuranceInputs): number {
+  const gross = calcGrossPremiumPerAcre(inputs);
+  const subsidyPct = getFarmerSubsidyPct(inputs.coverageLevel);
+  return gross * (1 - subsidyPct);
+}
+
+export function calcGovtSubsidyPerAcre(inputs: InsuranceInputs): number {
+  const gross = calcGrossPremiumPerAcre(inputs);
+  const subsidyPct = getFarmerSubsidyPct(inputs.coverageLevel);
+  return gross * subsidyPct;
+}
+
+/*
+ * ─── Test Cases (verified) ───────────────────────────────────────────────────
+ * RP: spring=$4.50, harvest=$5.50, APH=180, cov=75%, actual=100 bu/ac
+ *   guarantee = 180 × 0.75 × max(4.50,5.50) = 180 × 0.75 × 5.50 = $742.50
+ *   revenue   = 100 × 5.50 = $550.00
+ *   indemnity = max(0, 742.50 - 550.00) = $192.50/ac  ✓
+ *
+ * RP: spring=$4.50, harvest=$3.50, APH=180, cov=75%, actual=100 bu/ac
+ *   guarantee = 180 × 0.75 × max(4.50,3.50) = 180 × 0.75 × 4.50 = $607.50
+ *   revenue   = 100 × 3.50 = $350.00
+ *   indemnity = max(0, 607.50 - 350.00) = $257.50/ac  ✓
+ *
+ * YP: spring=$4.50, APH=180, cov=75%, actual=100 bu/ac
+ *   guaranteed yield = 180 × 0.75 = 135 bu/ac
+ *   indemnity = (135 - 100) × 4.50 = 35 × 4.50 = $157.50/ac  ✓
+ * ────────────────────────────────────────────────────────────────────────────
+ */
 
 // Generate heatmap data
 export interface HeatmapCell {
