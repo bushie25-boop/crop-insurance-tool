@@ -15,9 +15,10 @@ import QuoteBuilder from './components/QuoteBuilder';
 import DataSourcesPanel from './components/DataSourcesPanel';
 import HailMap from './components/HailMap';
 import OptimizerTab from './components/OptimizerTab';
+import HailQuoter from './components/HailQuoter';
 import PrintReport from './components/PrintReport';
 
-type Tab = 'overview' | 'scenarios' | 'backtest' | 'prices' | 'quote' | 'hail' | 'optimizer';
+type Tab = 'overview' | 'scenarios' | 'backtest' | 'prices' | 'quote' | 'hail' | 'hail-quote' | 'optimizer';
 
 const TABS: Array<{ id: Tab; label: string; icon: string }> = [
   { id: 'overview',   label: 'Overview',         icon: '🏠' },
@@ -26,6 +27,7 @@ const TABS: Array<{ id: Tab; label: string; icon: string }> = [
   { id: 'prices',     label: 'Price Discovery',   icon: '💹' },
   { id: 'quote',      label: 'Quote Builder',     icon: '📋' },
   { id: 'hail',       label: 'Hail Map',          icon: '🌩️' },
+  { id: 'hail-quote', label: 'Hail Quote',         icon: '🌩️' },
   { id: 'optimizer',  label: 'Optimizer',         icon: '🎯' },
 ];
 
@@ -141,6 +143,16 @@ export default function App() {
 
         {activeTab === 'hail' && (
           <HailMap selectedCounty={state.inputs.county} />
+        )}
+
+        {activeTab === 'hail-quote' && (
+          <HailQuoter
+            county={state.inputs.county}
+            crop={state.inputs.crop as 'corn' | 'soybeans'}
+            aphYield={state.inputs.aphYield}
+            springPrice={state.inputs.projectedPrice}
+            acres={state.inputs.acres}
+          />
         )}
 
         {activeTab === 'optimizer' && (
