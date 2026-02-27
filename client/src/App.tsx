@@ -17,6 +17,7 @@ import HailMap from './components/HailMap';
 import OptimizerTab from './components/OptimizerTab';
 import HailQuoter from './components/HailQuoter';
 import PrintReport from './components/PrintReport';
+import PrintModal, { type PrintSections } from './components/PrintModal';
 
 type Tab = 'overview' | 'scenarios' | 'backtest' | 'prices' | 'quote' | 'hail' | 'hail-quote' | 'optimizer';
 
@@ -34,6 +35,8 @@ const TABS: Array<{ id: Tab; label: string; icon: string }> = [
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [printMode, setPrintMode] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printSections, setPrintSections] = useState<PrintSections | null>(null);
   const state = useInsurance();
   const dataSources = useDataSources(state.inputs.county, state.inputs.crop);
 
@@ -77,7 +80,7 @@ export default function App() {
             <span>·</span>
             <span className="text-cyan-400">{state.inputs.irrigated ? 'Irrigated' : 'Non-Irr'}</span>
             <button
-              onClick={() => { setPrintMode(true); setTimeout(() => { window.print(); setTimeout(() => setPrintMode(false), 500); }, 1200); }}
+              onClick={() => setShowPrintModal(true)}
               className="flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition ml-2"
             >
               🖨️ Print Report
@@ -160,7 +163,26 @@ export default function App() {
         )}
       </div>
 
-      <PrintReport state={state} printMode={printMode} printDate={new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} />
+      <PrintReport state={state} printMode={printMode} printSections={printSections} printDate={new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} />
+      {showPrintModal && (
+        <PrintModal
+          clientName={state.inputs.clientName ?? ''}
+          farmName={state.inputs.farmName ?? ''}
+          onCancel={() => setShowPrintModal(false)}
+          onPrint={(sections) => {
+            setShowPrintModal(false);
+            setPrintSections(sections);
+            setPrintMode(true);
+            setTimeout(() => {
+              window.print();
+              setTimeout(() => {
+                setPrintMode(false);
+                setPrintSections(null);
+              }, 500);
+            }, 1200);
+          }}
+        />
+      )}
     </div>
   );
 }

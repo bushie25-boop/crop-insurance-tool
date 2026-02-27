@@ -2,6 +2,7 @@
 // B&B Agrisales · Teky · Feb 2026
 // Full-screen overlay captured by window.print()
 import React from 'react';
+import type { PrintSections } from './PrintModal';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend,
   ResponsiveContainer, ReferenceLine, Cell,
@@ -13,6 +14,7 @@ import { KEY_DATES_2026, getDaysUntil, getHailRates, calcHailPremiumPerAcre } fr
 interface Props {
   state: InsuranceState;
   printMode: boolean;
+  printSections: PrintSections | null;
   printDate?: string;
 }
 
@@ -53,8 +55,15 @@ const S = {
   divider: { borderTop: '1px solid #ccc', margin: '10px 0' },
 };
 
-export default function PrintReport({ state, printMode, printDate }: Props) {
+export default function PrintReport({ state, printMode, printSections, printDate }: Props) {
   if (!printMode) return null;
+
+  const s: PrintSections = printSections ?? {
+    coverPage: true, coverageSetup: true, backtest: true,
+    stabilityComparison: true, optimizer: true, hailQuote: true,
+    priceHistory: true, grainMarketing: true,
+  };
+
 
   const {
     inputs, premiumSummary, revenueGuarantee, backtestYears,
@@ -143,22 +152,28 @@ export default function PrintReport({ state, printMode, printDate }: Props) {
         .page-break { break-after: page; }
       `}</style>
       {/* ── SECTION 1: Header ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <img src="/root-risk-logo.jpg" alt="Root Risk Management" style={{ height: '40px', filter: 'none' }} />
-          <div>
-            <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#2d6a2d' }}>Root Risk Management</div>
-            <div style={{ fontSize: '12px', color: '#555' }}>Crop Insurance Decision Report</div>
+      {s.coverPage && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <img src="/root-risk-logo.jpg" alt="Root Risk Management" style={{ height: '40px', filter: 'none' }} />
+              <div>
+                <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#2d6a2d' }}>Root Risk Management</div>
+                <div style={{ fontSize: '12px', color: '#555' }}>Crop Insurance Decision Report</div>
+              </div>
+            </div>
+            <div style={{ fontSize: '12px', textAlign: 'right', color: '#444', lineHeight: '1.6' }}>
+              {clientName && <div><strong>Client:</strong> {clientName}{farmName ? ` / ${farmName}` : ''}</div>}
+              <div><strong>Date:</strong> {printDate || new Date().toLocaleDateString()}</div>
+              <div><strong>County:</strong> {inputs.county} &nbsp;|&nbsp; <strong>Crop:</strong> <span style={{ textTransform: 'capitalize' }}>{crop}</span></div>
+            </div>
           </div>
-        </div>
-        <div style={{ fontSize: '12px', textAlign: 'right', color: '#444', lineHeight: '1.6' }}>
-          {clientName && <div><strong>Client:</strong> {clientName}{farmName ? ` / ${farmName}` : ''}</div>}
-          <div><strong>Date:</strong> {printDate || new Date().toLocaleDateString()}</div>
-          <div><strong>County:</strong> {inputs.county} &nbsp;|&nbsp; <strong>Crop:</strong> <span style={{ textTransform: 'capitalize' }}>{crop}</span></div>
-        </div>
-      </div>
-      <div style={S.divider} />
+          <div style={S.divider} />
+        </>
+      )}
 
+      {s.coverageSetup && (
+        <>
       {/* ── SECTION 2: Policy Summary + Premium Breakdown ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
         <div>
@@ -187,6 +202,11 @@ export default function PrintReport({ state, printMode, printDate }: Props) {
         </div>
       </div>
 
+        </>
+      )}
+
+            {s.backtest && (
+        <>
       {/* ── SECTION 3: Backtest Performance ── */}
       <div style={S.h2}>HISTORICAL PERFORMANCE ANALYSIS — {numYears}-YEAR BACKTEST</div>
 
@@ -266,6 +286,11 @@ export default function PrintReport({ state, printMode, printDate }: Props) {
         </tbody>
       </table>
 
+        </>
+      )}
+
+            {s.optimizer && (
+        <>
       {/* ── SECTION 4: Optimizer Recommendation ── */}
       <div style={S.h2}>OPTIMIZER RECOMMENDATION</div>
       {optimizerResults.length > 0 ? (
@@ -298,6 +323,11 @@ export default function PrintReport({ state, printMode, printDate }: Props) {
         <p style={{ fontSize: '12px', color: '#666', fontStyle: 'italic' }}>Run the Optimizer tab to see personalized recommendations.</p>
       )}
 
+        </>
+      )}
+
+            {s.hailQuote && (
+        <>
       {/* ── SECTION 4b: Hail Insurance Rates ── */}
       <div style={S.h2}>PRO AG HAIL INSURANCE RATES</div>
       {(() => {
@@ -343,6 +373,11 @@ export default function PrintReport({ state, printMode, printDate }: Props) {
         );
       })()}
 
+        </>
+      )}
+
+            {(s.grainMarketing || s.priceHistory) && (
+        <>
       {/* ── SECTION 5: Grain Marketing Risk ── */}
       <div style={S.h2}>GRAIN MARKETING RISK</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
@@ -360,7 +395,7 @@ export default function PrintReport({ state, printMode, printDate }: Props) {
           </div>
         </div>
         <div>
-          {priceChartData.length > 0 && (
+          {s.priceHistory && priceChartData.length > 0 && (
             <ComposedChart width={500} height={150} data={priceChartData} margin={{ top: 4, right: 10, bottom: 4, left: 0 }}>
               <XAxis dataKey="year" tick={{ fontSize: 9 }} />
               <YAxis tick={{ fontSize: 9 }} />
@@ -379,7 +414,10 @@ export default function PrintReport({ state, printMode, printDate }: Props) {
         </div>
       </div>
 
-      {/* ── SECTION 6: Key Dates + Disclaimer ── */}
+        </>
+      )}
+
+            {/* ── SECTION 6: Key Dates + Disclaimer ── */}
       <div style={S.h2}>KEY DATES — 2026 CROP YEAR</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', fontSize: '11px', marginBottom: '16px' }}>
         {KEY_DATES_2026.map(d => {
