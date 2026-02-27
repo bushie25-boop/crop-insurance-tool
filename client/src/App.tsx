@@ -15,6 +15,7 @@ import QuoteBuilder from './components/QuoteBuilder';
 import DataSourcesPanel from './components/DataSourcesPanel';
 import HailMap from './components/HailMap';
 import OptimizerTab from './components/OptimizerTab';
+import PrintReport from './components/PrintReport';
 
 type Tab = 'overview' | 'scenarios' | 'backtest' | 'prices' | 'quote' | 'hail' | 'optimizer';
 
@@ -39,11 +40,11 @@ export default function App() {
         @media print {
           body { background: white !important; color: black !important; }
           .no-print { display: none !important; }
-          #quote-print-area { display: block !important; }
+          #print-report { display: block !important; }
           @page { margin: 0.5in; }
         }
         @media screen {
-          #quote-print-area { display: none !important; }
+          #print-report { display: none !important; }
         }
       `}</style>
 
@@ -75,6 +76,12 @@ export default function App() {
             {state.inputs.isBFR && <span className="text-green-400 font-bold">BFR</span>}
             <span>·</span>
             <span className="text-cyan-400">{state.inputs.irrigated ? 'Irrigated' : 'Non-Irr'}</span>
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition ml-2"
+            >
+              🖨️ Print Report
+            </button>
           </div>
         </div>
 
@@ -143,8 +150,7 @@ export default function App() {
         )}
       </div>
 
-      {/* Print-only area (populated by QuoteBuilder) */}
-      <div id="quote-print-area" />
+      <PrintReport state={state} printDate={new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} />
     </div>
   );
 }
