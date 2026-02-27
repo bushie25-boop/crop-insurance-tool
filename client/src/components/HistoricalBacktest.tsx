@@ -7,6 +7,7 @@ import {
 import type { InsuranceState } from '../hooks/useInsurance';
 import { getHailEvents } from '../lib/historicalData';
 
+
 interface Props {
   state: InsuranceState;
 }
@@ -28,6 +29,7 @@ export default function HistoricalBacktest({ state }: Props) {
   const { backtestYears, backtestSummary, inputs, backtestWindow, setBacktestWindow, countyAPH } = state;
   const hailEvents = getHailEvents(inputs.county);
   const [showExplainer, setShowExplainer] = useState(false);
+  const [showStabilityComparison, setShowStabilityComparison] = useState(true);
 
   if (!backtestYears.length) {
     return (
@@ -223,6 +225,121 @@ export default function HistoricalBacktest({ state }: Props) {
         </div>
         <div className="text-xs text-slate-500 italic">* Projection only. Harvest price unknown — using spring price as proxy.</div>
       </div>
+
+      {/* ── Stability Scenario Comparison ── */}
+      {state.stabilityComparison && state.stabilityComparison.length === 3 && (() => {
+        const sc = state.stabilityComparison;
+        const years = backtestYears.map(y => y.year);
+        const countyTrendAPH = backtestYears.map(y => y.countyAPH);
+
+        // Build combined yield chart data
+        const yieldChartData = years.map((yr, i) => ({
+          year: yr,
+          countyTrend: countyTrendAPH[i],
+          moreStable: sc[0].farmYields[i],
+          average: sc[1].farmYields[i],
+          lessStable: sc[2].farmYields[i],
+        }));
+
+        // Build net/yr comparison chart data
+        const netChartData = years.map((yr, i) => ({
+          year: yr,
+          moreStable: parseFloat((sc[0].backtestYears[i]?.netPerAcre ?? 0).toFixed(2)),
+          average: parseFloat((sc[1].backtestYears[i]?.netPerAcre ?? 0).toFixed(2)),
+          lessStable: parseFloat((sc[2].backtestYears[i]?.netPerAcre ?? 0).toFixed(2)),
+        }));
+
+        const cardColors = [
+          { border: state.yieldStability === 'more_stable' ? 'border-blue-400' : 'border-blue-800', header: 'bg-blue-700', text: 'text-blue-300' },
+          { border: state.yieldStability === 'average' ? 'border-slate-300' : 'border-slate-600', header: 'bg-slate-600', text: 'text-slate-300' },
+          { border: state.yieldStability === 'less_stable' ? 'border-orange-400' : 'border-orange-800', header: 'bg-orange-700', text: 'text-orange-300' },
+        ];
+
+        return (
+          <div className="bg-slate-900/50 border border-slate-600 rounded-xl p-4 space-y-4">
+            <button
+              onClick={() => setShowStabilityComparison(v => !v)}
+              className="w-full text-left text-sm font-semibold text-slate-200 hover:text-white flex items-center justify-between"
+            >
+              <span>🔄 Yield Stability Scenario Comparison</span>
+              <span className="text-slate-400">{showStabilityComparison ? '▲' : '▼'}</span>
+            </button>
+
+            {showStabilityComparison && (
+              <>
+                {/* Part A — 3-column summary cards */}
+                <div className="grid grid-cols-3 gap-3">
+                  {sc.map((s, idx) => {
+                    const { summary } = s;
+                    const n = summary.years;
+                    const trigPct = Math.round(summary.triggerRate * 100);
+                    const cumLabel = `${n}yr`;
+                    const colors = cardColors[idx];
+                    return (
+                      <div key={s.stability} className={`rounded-lg border-2 ${colors.border} overflow-hidden`}>
+                        <div className={`${colors.header} text-white text-xs font-bold px-3 py-2`}>{s.label}</div>
+                        <div className="bg-slate-800 p-3 space-y-1 text-xs">
+                          <div className="flex justify-between"><span className="text-slate-400">Trigger rate</span><span className="text-white font-semibold">{summary.anyTriggers}/{n} ({trigPct}%)</span></div>
+                          <div className="flex justify-between"><span className="text-slate-400">Avg net/yr</span><span className={`font-semibold ${summary.avgNetPerAcre >= 0 ? 'text-green-400' : 'text-red-400'}`}>{summary.avgNetPerAcre >= 0 ? '+' : ''}${summary.avgNetPerAcre.toFixed(2)}/ac</span></div>
+                          <div className="flex justify-between"><span className="text-slate-400">Avg premium/yr</span><span className="text-slate-300">${summary.avgFarmerPremium.toFixed(2)}/ac</span></div>
+                          <div className="flex justify-between"><span className="text-slate-400">Avg indemnity/yr</span><span className="text-slate-300">${summary.avgTotalIndemnity.toFixed(2)}/ac</span></div>
+                          <div className="flex justify-between"><span className="text-slate-400">Cum. net ({cumLabel})</span><span className={`font-semibold ${summary.cumulativeNet >= 0 ? 'text-green-400' : 'text-red-400'}`}>{summary.cumulativeNet >= 0 ? '+' : ''}${summary.cumulativeNet.toFixed(2)}</span></div>
+                          <div className="flex justify-between"><span className="text-slate-400">Worst yr net</span><span className="text-red-400">${Math.min(...s.backtestYears.map(y => y.netPerAcre)).toFixed(2)}/ac</span></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Part B — Combined yield chart */}
+                <div>
+                  <div className="text-xs font-semibold text-slate-300 mb-1">
+                    Simulated Farm Yields by Stability Setting — {inputs.county}, <span className="capitalize">{inputs.crop}</span>
+                  </div>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <ComposedChart data={yieldChartData} margin={{ top: 4, right: 10, left: 10, bottom: 4 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis dataKey="year" tick={{ fill: '#9CA3AF', fontSize: 11 }} />
+                      <YAxis tick={{ fill: '#9CA3AF', fontSize: 11 }} tickFormatter={v => `${v}`} label={{ value: 'bu/ac', angle: -90, position: 'insideLeft', fill: '#9CA3AF', fontSize: 10 }} />
+                      <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #475569', borderRadius: '8px' }} labelStyle={{ color: '#fff', fontWeight: 'bold' }} formatter={(v: number, name: string) => [`${v.toFixed(1)} bu/ac`, name]} />
+                      <Legend wrapperStyle={{ fontSize: '11px' }} />
+                      <Line type="monotone" dataKey="countyTrend" name="Expected Trend" stroke="#94a3b8" strokeDasharray="5 5" dot={false} strokeWidth={1.5} />
+                      <Line type="monotone" dataKey="moreStable" name="More Stable" stroke="#60a5fa" dot={false} strokeWidth={2} />
+                      <Line type="monotone" dataKey="average" name="County Avg" stroke="#4ade80" dot={false} strokeWidth={2} />
+                      <Line type="monotone" dataKey="lessStable" name="Less Stable" stroke="#fb923c" dot={false} strokeWidth={2} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                  <div className="text-xs text-slate-500 italic mt-1">
+                    More stable = bluff ground holds up better than county; Less stable = variable soils swing harder
+                  </div>
+                </div>
+
+                {/* Part C — Net per acre comparison chart */}
+                <div>
+                  <div className="text-xs font-semibold text-slate-300 mb-1">Annual Net $/ac by Stability Scenario</div>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <ComposedChart data={netChartData} margin={{ top: 4, right: 10, left: 10, bottom: 4 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis dataKey="year" tick={{ fill: '#9CA3AF', fontSize: 11 }} />
+                      <YAxis tick={{ fill: '#9CA3AF', fontSize: 11 }} tickFormatter={v => `$${v}`} />
+                      <Tooltip
+                        contentStyle={{ background: '#1e293b', border: '1px solid #475569', borderRadius: '8px' }}
+                        labelStyle={{ color: '#fff', fontWeight: 'bold' }}
+                        formatter={(v: number, name: string) => [`$${v.toFixed(2)}/ac`, name]}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '11px' }} />
+                      <ReferenceLine y={0} stroke="#64748b" />
+                      <Line type="monotone" dataKey="moreStable" name="More Stable" stroke="#60a5fa" dot={false} strokeWidth={2} />
+                      <Line type="monotone" dataKey="average" name="County Avg" stroke="#4ade80" dot={false} strokeWidth={2} />
+                      <Line type="monotone" dataKey="lessStable" name="Less Stable" stroke="#fb923c" dot={false} strokeWidth={2} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Bar chart */}
       <div>

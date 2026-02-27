@@ -42,6 +42,7 @@ export default function App() {
           body { background: white !important; }
           .no-print { display: none !important; }
           .print-report-overlay { position: static !important; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
       `}</style>
 
@@ -74,7 +75,7 @@ export default function App() {
             <span>·</span>
             <span className="text-cyan-400">{state.inputs.irrigated ? 'Irrigated' : 'Non-Irr'}</span>
             <button
-              onClick={() => { setPrintMode(true); setTimeout(() => { window.print(); setPrintMode(false); }, 400); }}
+              onClick={() => { setPrintMode(true); setTimeout(() => { window.print(); setTimeout(() => setPrintMode(false), 500); }, 1200); }}
               className="flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition ml-2"
             >
               🖨️ Print Report

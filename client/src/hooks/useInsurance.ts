@@ -8,6 +8,7 @@ import {
   type ECOLevel,
   type UnitStructure,
   type OptimizerCombo,
+  type StabilityScenario,
   calcFullPremiumSummary,
   calcRevenueGuarantee,
   calcYieldGuarantee,
@@ -18,6 +19,7 @@ import {
   summarizeBacktest,
   buildComparisonTable,
   simulateFarmYields,
+  runStabilityComparison,
 } from '../lib/insurance';
 import { getCountyYields, getPriceHistory } from '../lib/historicalData';
 
@@ -162,6 +164,24 @@ export function useInsurance() {
   // Farm yields aligned with backtestYears (for chart display)
   const farmYields = useMemo(() => backtestYears.map(y => y.farmYield), [backtestYears]);
 
+  const stabilityComparison = useMemo((): StabilityScenario[] => {
+    if (!countyYieldData) return [];
+    const { yields, trendAPH, years } = countyYieldData;
+    const windowSize = backtestWindow === 'all' ? yields.length : backtestWindow;
+    const slicedYields = yields.slice(-windowSize);
+    const slicedAPHs = trendAPH.slice(-windowSize);
+    const slicedYears = years.slice(-windowSize);
+    const projPrices = slicedYears.map(yr => {
+      const idx = priceData.years.indexOf(yr);
+      return idx >= 0 ? priceData.projectedPrices[idx] : inputs.springPrice;
+    });
+    const harvPrices = slicedYears.map(yr => {
+      const idx = priceData.years.indexOf(yr);
+      return idx >= 0 ? (priceData.harvestPrices[idx] > 0 ? priceData.harvestPrices[idx] : inputs.springPrice) : inputs.springPrice;
+    });
+    return runStabilityComparison(inputs, slicedYields, slicedAPHs, projPrices, harvPrices, slicedYears[0]);
+  }, [inputs, countyYieldData, priceData, backtestWindow]);
+
   return {
     inputs,
     updateInput,
@@ -192,6 +212,8 @@ export function useInsurance() {
     assumed2026Row,
     // Farm yields (simulated, aligned with backtestYears)
     farmYields,
+    // Stability comparison
+    stabilityComparison,
     // Optimizer
     yieldStability,
     setYieldStability,

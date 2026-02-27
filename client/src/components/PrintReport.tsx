@@ -8,7 +8,7 @@ import {
 } from 'recharts';
 import type { InsuranceState } from '../hooks/useInsurance';
 import { KEY_DATES_2026, getDaysUntil, getHailEvents } from '../lib/historicalData';
-import { simulateFarmYields } from '../lib/insurance';
+
 
 interface Props {
   state: InsuranceState;
@@ -70,17 +70,7 @@ export default function PrintReport({ state, printMode, printDate }: Props) {
   const coveragePct = Math.round(inputs.coverageLevel * 100);
   const hailEvents = getHailEvents(inputs.county);
 
-  // ── Section 3: Yield history chart data ──
-  const yieldChartData = countyYieldData
-    ? countyYieldData.years.map((yr, i) => {
-        const countyActual = countyYieldData.yields[i];
-        const trend = countyYieldData.trendAPH[i];
-        const simFarm = simulateFarmYields([countyActual], [trend], stabilityFactor)[0];
-        return { year: yr, countyTrend: trend, countyActual, simFarm };
-      })
-    : [];
-
-  // ── Section 4: Backtest chart data ──
+  // ── Section 3: Backtest chart data ──
   const numYears = backtestYears.length;
   const payYears = backtestYears.filter(r => r.totalIndemnity > 0).length;
   const avgPrem = numYears > 0 ? backtestYears.reduce((s, r) => s + r.totalPremium, 0) / numYears : 0;
@@ -149,6 +139,11 @@ export default function PrintReport({ state, printMode, printDate }: Props) {
         fontFamily: 'Georgia, serif', color: '#1a1a1a',
       }}
     >
+      <style>{`
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
+        @page { margin: 0.4in; size: letter portrait; }
+        .page-break { break-after: page; }
+      `}</style>
       {/* ── SECTION 1: Header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -194,27 +189,7 @@ export default function PrintReport({ state, printMode, printDate }: Props) {
         </div>
       </div>
 
-      {/* ── SECTION 3: Simulated Farm Yield History Chart ── */}
-      <div style={S.h2}>FARM YIELD HISTORY — {stabilityLabel.toUpperCase()} STABILITY vs COUNTY AVERAGE</div>
-      {yieldChartData.length > 0 && (
-        <div style={{ background: 'white' }}>
-          <ComposedChart width={700} height={200} data={yieldChartData} margin={{ top: 4, right: 20, bottom: 4, left: 0 }}>
-            <XAxis dataKey="year" tick={{ fontSize: 10 }} />
-            <YAxis tick={{ fontSize: 10 }} label={{ value: 'bu/ac', angle: -90, position: 'insideLeft', fontSize: 10 }} />
-            <Tooltip formatter={(v: number) => v.toFixed(1) + ' bu'} />
-            <Legend wrapperStyle={{ fontSize: '11px' }} />
-            <Line type="monotone" dataKey="countyTrend" name="County Trend APH" stroke="#999" strokeDasharray="5 5" dot={false} strokeWidth={1} />
-            <Line type="monotone" dataKey="countyActual" name="County Actual Yield" stroke="#3b82f6" dot={false} strokeWidth={1.5} />
-            <Line type="monotone" dataKey="simFarm" name="Simulated Farm Yield" stroke="#16a34a" dot={false} strokeWidth={2.5} />
-          </ComposedChart>
-          <p style={S.note}>
-            Simulated farm yields based on '{yieldStability}' stability setting — {stabilityNote}.
-            Formula: farmYield = countyTrend + (countyActual − countyTrend) × {stabilityFactor}
-          </p>
-        </div>
-      )}
-
-      {/* ── SECTION 4: Backtest + Optimizer Combined ── */}
+      {/* ── SECTION 3: Backtest Performance ── */}
       <div style={S.h2}>HISTORICAL PERFORMANCE ANALYSIS — {numYears}-YEAR BACKTEST</div>
 
       {/* Sub-section A: Stats grid */}
@@ -237,7 +212,7 @@ export default function PrintReport({ state, printMode, printDate }: Props) {
       {/* Sub-section B: Chart */}
       {backtestChartData.length > 0 && (
         <div style={{ background: 'white' }}>
-          <ComposedChart width={800} height={220} data={backtestChartData} margin={{ top: 4, right: 20, bottom: 4, left: 0 }}>
+          <ComposedChart width={680} height={200} data={backtestChartData} margin={{ top: 4, right: 20, bottom: 4, left: 0 }}>
             <XAxis dataKey="year" tick={{ fontSize: 9 }} />
             <YAxis yAxisId="left" tick={{ fontSize: 9 }} />
             <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 9 }} />
@@ -293,7 +268,7 @@ export default function PrintReport({ state, printMode, printDate }: Props) {
         </tbody>
       </table>
 
-      {/* ── SECTION 5: Optimizer Recommendation ── */}
+      {/* ── SECTION 4: Optimizer Recommendation ── */}
       <div style={S.h2}>OPTIMIZER RECOMMENDATION</div>
       {optimizerResults.length > 0 ? (
         <div>
@@ -329,7 +304,7 @@ export default function PrintReport({ state, printMode, printDate }: Props) {
         <p style={{ fontSize: '12px', color: '#666', fontStyle: 'italic' }}>Run the Optimizer tab to see personalized recommendations.</p>
       )}
 
-      {/* ── SECTION 6: Grain Marketing Risk ── */}
+      {/* ── SECTION 5: Grain Marketing Risk ── */}
       <div style={S.h2}>GRAIN MARKETING RISK</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
         <div>
@@ -347,7 +322,7 @@ export default function PrintReport({ state, printMode, printDate }: Props) {
         </div>
         <div>
           {priceChartData.length > 0 && (
-            <ComposedChart width={320} height={150} data={priceChartData} margin={{ top: 4, right: 10, bottom: 4, left: 0 }}>
+            <ComposedChart width={500} height={150} data={priceChartData} margin={{ top: 4, right: 10, bottom: 4, left: 0 }}>
               <XAxis dataKey="year" tick={{ fontSize: 9 }} />
               <YAxis tick={{ fontSize: 9 }} />
               <Tooltip formatter={(v: number) => fmtMoney(v)} />
@@ -365,7 +340,7 @@ export default function PrintReport({ state, printMode, printDate }: Props) {
         </div>
       </div>
 
-      {/* ── SECTION 7: Key Dates + Disclaimer ── */}
+      {/* ── SECTION 6: Key Dates + Disclaimer ── */}
       <div style={S.h2}>KEY DATES — 2026 CROP YEAR</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', fontSize: '11px', marginBottom: '16px' }}>
         {KEY_DATES_2026.map(d => {

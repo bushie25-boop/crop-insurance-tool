@@ -717,6 +717,43 @@ export function runOptimizer(
   return combos;
 }
 
+// ─── Stability Scenario Comparison ───────────────────────────────────────────
+
+export interface StabilityScenario {
+  label: string;
+  stability: 'more_stable' | 'average' | 'less_stable';
+  stabilityFactor: number;
+  farmYields: number[];
+  backtestYears: BacktestYear[];
+  summary: BacktestSummary;
+}
+
+export function runStabilityComparison(
+  inputs: InsuranceInputs,
+  countyYields: number[],
+  countyAPHs: number[],
+  projPrices: number[],
+  harvPrices: number[],
+  startYear: number
+): StabilityScenario[] {
+  const scenarios = [
+    { label: 'More Stable (×0.5)', stability: 'more_stable' as const, stabilityFactor: 0.5 },
+    { label: 'County Average (×1.0)', stability: 'average' as const, stabilityFactor: 1.0 },
+    { label: 'Less Stable (×1.3)', stability: 'less_stable' as const, stabilityFactor: 1.3 },
+  ];
+
+  return scenarios.map(s => {
+    const farmYields = simulateFarmYields(countyYields, countyAPHs, s.stabilityFactor);
+    const years = runBacktest(inputs, countyYields, countyAPHs, projPrices, harvPrices, startYear, farmYields);
+    return {
+      ...s,
+      farmYields,
+      backtestYears: years,
+      summary: summarizeBacktest(years),
+    };
+  });
+}
+
 // ─── Coverage stack label ─────────────────────────────────────────────────────
 
 export function getCoverageStackLabel(inputs: InsuranceInputs): string {
