@@ -26,7 +26,15 @@ const WINDOW_OPTIONS: Array<{ label: string; value: import('../hooks/useInsuranc
 ];
 
 export default function HistoricalBacktest({ state }: Props) {
-  const { backtestYears, backtestSummary, inputs, backtestWindow, setBacktestWindow, countyAPH } = state;
+  const { backtestYears, backtestSummary, inputs, backtestWindow, setBacktestWindow, countyAPH,
+    yield2025Override, setYield2025Override, countyYieldData } = state;
+
+  // Estimated 2025 county yield from raw data
+  const estimated2025Yield = (() => {
+    if (!countyYieldData) return 0;
+    const idx = countyYieldData.years.indexOf(2025);
+    return idx >= 0 ? countyYieldData.yields[idx] : 0;
+  })();
   const hailEvents = getHailEvents(inputs.county);
   const [showExplainer, setShowExplainer] = useState(false);
   const [showStabilityComparison, setShowStabilityComparison] = useState(true);
@@ -190,6 +198,39 @@ export default function HistoricalBacktest({ state }: Props) {
           {inputs.ecoLevel !== 'None' && ` · ECO triggered: ${ecoTriggers}/${years} years`}
         </div>
       )}
+
+      {/* 2025 Yield — editable (NASS pending) */}
+      <div className="bg-slate-700/50 border border-amber-500/30 rounded-lg p-3 mb-3">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <span className="text-sm font-semibold text-amber-300">2025 County Yield</span>
+            <span className="ml-2 text-xs bg-amber-900/60 text-amber-300 px-2 py-0.5 rounded">NASS Pending</span>
+          </div>
+          {yield2025Override !== null && (
+            <button
+              onClick={() => setYield2025Override(null)}
+              className="text-xs text-slate-400 hover:text-white"
+            >
+              Reset to estimate
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <input
+            type="number"
+            min={50} max={300} step={1}
+            value={yield2025Override ?? estimated2025Yield}
+            onChange={e => setYield2025Override(Number(e.target.value))}
+            className="w-28 bg-slate-600 text-white rounded px-2 py-1 text-sm border border-slate-500 focus:border-amber-400"
+          />
+          <span className="text-xs text-slate-400">bu/ac</span>
+          <span className="text-xs text-slate-500">
+            {yield2025Override !== null
+              ? '✓ Using your value'
+              : `Estimated: ${estimated2025Yield} bu/ac — update when NASS publishes`}
+          </span>
+        </div>
+      </div>
 
       {/* 2026 Yield Assumption Box */}
       <div className="bg-slate-900/80 border border-dashed border-slate-500 rounded-xl p-4 space-y-2">
@@ -479,7 +520,12 @@ export default function HistoricalBacktest({ state }: Props) {
                 const hailEvt = hailEvents.find(h => h.year === yr.year);
                 return (
                   <tr key={yr.year} className={`border-b border-slate-700/50 ${yr.totalIndemnity > 0 ? 'bg-blue-900/10' : ''}`}>
-                    <td className="py-1 px-2 font-semibold text-white">{yr.year}</td>
+                    <td className="py-1 px-2 font-semibold text-white">
+                      {yr.year}
+                      {yr.year === 2025 && yield2025Override === null && (
+                        <span className="ml-1 text-xs text-amber-400 opacity-70">est.</span>
+                      )}
+                    </td>
                     <td className="py-1 px-2 text-right">
                       {(() => {
                         const diff = yr.countyYield - yr.countyAPH;

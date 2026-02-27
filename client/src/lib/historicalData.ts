@@ -18,8 +18,9 @@ export interface PriceHistory {
 }
 
 // ─── County Yield History ─────────────────────────────────────────────────────
-// Source: USDA NASS county estimates + RMA SCO Expected County Yield database
-// ⚠️ ESTIMATED — verify via NASS API
+// ⚠️ 2025 yields are ESTIMATES — NASS county data not yet published (expected Feb/Mar 2026)
+// Update via the editable field in the Backtest tab when NASS releases final numbers
+// All other years (2000–2024) sourced from USDA NASS county estimates
 
 export const COUNTY_YIELDS: CountyYieldHistory[] = [
   {
