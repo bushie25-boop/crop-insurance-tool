@@ -112,16 +112,14 @@ export function useInsurance() {
     });
 
     const stabilityFactor = STABILITY_FACTOR_MAP[yieldStability];
-    const allFarmYields = simulateFarmYields(yields, trendAPH, stabilityFactor);
 
-    const fullBacktest = runBacktest(inputs, yields, trendAPH, projPrices, harvPrices, startYear, allFarmYields);
-    // Apply yield2025Override if set
-    if (yield2025Override !== null) {
-      const idx2025 = fullBacktest.findIndex(r => r.year === 2025);
-      if (idx2025 >= 0) {
-        fullBacktest[idx2025] = { ...fullBacktest[idx2025], countyYield: yield2025Override };
-      }
-    }
+    // Inject yield2025Override BEFORE runBacktest so the math recalculates correctly
+    const effectiveYields = yields.map((y, i) =>
+      years[i] === 2025 && yield2025Override !== null ? yield2025Override : y
+    );
+
+    const allFarmYields = simulateFarmYields(effectiveYields, trendAPH, stabilityFactor);
+    const fullBacktest = runBacktest(inputs, effectiveYields, trendAPH, projPrices, harvPrices, startYear, allFarmYields);
     // Apply window filter — take the most recent N years
     const windowed = backtestWindow === 'all'
       ? fullBacktest
