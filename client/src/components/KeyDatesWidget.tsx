@@ -1,13 +1,22 @@
 // KeyDatesWidget.tsx — countdown to key 2026 crop insurance dates
-import React from 'react';
+import React, { useState } from 'react';
 import { KEY_DATES_2026, getDaysUntil } from '../lib/historicalData';
 
 export default function KeyDatesWidget() {
   const now = new Date();
+  const [open, setOpen] = useState(true);
 
   return (
-    <div className="bg-slate-800 rounded-xl p-4">
-      <h3 className="text-white font-bold text-lg mb-3">📅 2026 Key Dates</h3>
+    <div className="bg-slate-800 rounded-xl">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-700/50 rounded-xl transition"
+      >
+        <h3 className="text-white font-bold text-lg">📅 2026 Key Dates</h3>
+        <span className="text-slate-400 text-sm">{open ? '▲ Collapse' : '▼ Expand'}</span>
+      </button>
+      {open && (
+      <div className="px-4 pb-4">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {KEY_DATES_2026.map(item => {
           const days = getDaysUntil(item.date);
@@ -45,6 +54,8 @@ export default function KeyDatesWidget() {
             ⚠️ SALES CLOSING IN {getDaysUntil(new Date('2026-03-15'))} DAYS — March 15, 2026. Contact your agent NOW.
           </span>
         </div>
+      )}
+      </div>
       )}
     </div>
   );

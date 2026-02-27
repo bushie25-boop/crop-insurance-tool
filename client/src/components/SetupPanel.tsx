@@ -1,5 +1,5 @@
 // SetupPanel.tsx — Input controls
-import React from 'react';
+import React, { useState } from 'react';
 import type { InsuranceState } from '../hooks/useInsurance';
 import type { County, CropType, PlanType, ECOLevel, UnitStructure } from '../lib/insurance';
 
@@ -12,10 +12,19 @@ interface Props {
 
 export default function SetupPanel({ state }: Props) {
   const { inputs, updateInput } = state;
+  const [open, setOpen] = useState(true);
 
   return (
-    <div className="bg-slate-800 rounded-xl p-4">
-      <h2 className="text-white font-bold text-lg mb-4">⚙️ Policy Setup</h2>
+    <div className="bg-slate-800 rounded-xl">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-700/50 rounded-xl transition"
+      >
+        <h2 className="text-white font-bold text-lg">⚙️ Policy Setup</h2>
+        <span className="text-slate-400 text-sm">{open ? '▲ Collapse' : '▼ Expand'}</span>
+      </button>
+      {open && (
+      <div className="px-4 pb-4">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
 
         {/* Crop */}
@@ -196,6 +205,8 @@ export default function SetupPanel({ state }: Props) {
         <div className="mt-2 bg-amber-900/30 border border-amber-600 rounded-lg px-3 py-2 text-sm text-amber-300">
           ⚠️ SCO/ECO payments are issued mid-year following the loss year. A 2026 loss would pay in mid-2027.
         </div>
+      )}
+      </div>
       )}
     </div>
   );
