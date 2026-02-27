@@ -1,351 +1,399 @@
-// PrintReport.tsx — Full crop insurance report, print/PDF optimized
+// PrintReport.tsx — Print Report v2 with Charts
+// B&B Agrisales · Teky · Feb 2026
+// Full-screen overlay captured by window.print()
 import React from 'react';
+import {
+  ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend,
+  ResponsiveContainer, ReferenceLine, Cell,
+} from 'recharts';
 import type { InsuranceState } from '../hooks/useInsurance';
-import { KEY_DATES_2026, getHailEvents, getDaysUntil } from '../lib/historicalData';
+import { KEY_DATES_2026, getDaysUntil, getHailEvents } from '../lib/historicalData';
+import { simulateFarmYields } from '../lib/insurance';
 
 interface Props {
   state: InsuranceState;
+  printMode: boolean;
   printDate?: string;
 }
 
-const S = {
-  page: {
-    fontFamily: 'Georgia, serif',
-    color: '#1a1a1a',
-    background: 'white',
-    padding: '0.5in',
-    pageBreakAfter: 'always' as const,
-    breakAfter: 'page' as const,
-  },
-  lastPage: {
-    fontFamily: 'Georgia, serif',
-    color: '#1a1a1a',
-    background: 'white',
-    padding: '0.5in',
-  },
-  h1: { fontSize: '22px', fontWeight: 'bold', color: '#1a1a1a', margin: '0 0 4px 0' },
-  h2: { fontSize: '16px', fontWeight: 'bold', color: '#2d6a2d', margin: '20px 0 6px 0', borderBottom: '2px solid #2d6a2d', paddingBottom: '4px' },
-  h3: { fontSize: '13px', fontWeight: 'bold', color: '#1a1a1a', margin: '14px 0 4px 0' },
-  row: { display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '13px' },
-  label: { color: '#444' },
-  value: { fontWeight: 'bold' as const, color: '#1a1a1a' },
-  total: { display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '14px', fontWeight: 'bold' as const, borderTop: '2px solid #1a1a1a', marginTop: '4px' },
-  note: { fontSize: '11px', color: '#666', marginTop: '8px', fontStyle: 'italic' as const },
-  coverBox: {
-    border: '3px solid #2d6a2d',
-    borderRadius: '8px',
-    padding: '20px 28px',
-    marginBottom: '24px',
-    background: '#f8fbf8',
-  },
-  table: { width: '100%', borderCollapse: 'collapse' as const, fontSize: '12px', marginTop: '8px' },
-  th: { background: '#2d6a2d', color: 'white', padding: '6px 8px', textAlign: 'left' as const, fontWeight: 'bold' },
-  td: { padding: '4px 8px', borderBottom: '1px solid #ddd' },
-  tdAlt: { padding: '4px 8px', borderBottom: '1px solid #ddd', background: '#f5f5f5' },
-  divider: { borderTop: '1px solid #ccc', margin: '12px 0' },
+const STABILITY_FACTOR_MAP: Record<string, number> = {
+  more_stable: 0.5,
+  average: 1.0,
+  less_stable: 1.3,
 };
 
-function fmt(n: number, decimals = 2): string {
-  return n.toFixed(decimals);
-}
-function fmtMoney(n: number): string {
-  return '$' + n.toFixed(2);
-}
-function fmtComma(n: number): string {
-  return n.toLocaleString('en-US');
-}
+const STABILITY_LABEL: Record<string, string> = {
+  more_stable: 'More Stable',
+  average: 'Average',
+  less_stable: 'Less Stable',
+};
 
-export default function PrintReport({ state, printDate }: Props) {
-  const { inputs, premiumSummary, revenueGuarantee, backtestYears,
-          clientName, farmName, yieldStability, topCoveragePct, countyAPH, priceData } = state;
+const STABILITY_NOTE: Record<string, string> = {
+  more_stable: 'dampened county swings (×0.5)',
+  average: 'tracks county directly',
+  less_stable: 'amplified county swings (×1.3)',
+};
+
+function fmt(n: number, d = 2) { return n.toFixed(d); }
+function fmtMoney(n: number) { return '$' + n.toFixed(2); }
+function fmtComma(n: number) { return n.toLocaleString('en-US'); }
+
+const S = {
+  section: { marginBottom: '24px' },
+  h2: { fontSize: '15px', fontWeight: 'bold' as const, color: '#2d6a2d', borderBottom: '2px solid #2d6a2d', paddingBottom: '3px', marginBottom: '10px', marginTop: '20px' },
+  h3: { fontSize: '13px', fontWeight: 'bold' as const, color: '#1a1a1a', marginBottom: '6px', marginTop: '14px' },
+  row: { display: 'flex', justifyContent: 'space-between', padding: '2px 0', fontSize: '12px' },
+  label: { color: '#555' },
+  value: { fontWeight: 'bold' as const, color: '#1a1a1a' },
+  table: { width: '100%', borderCollapse: 'collapse' as const, fontSize: '11px', marginTop: '6px' },
+  th: { background: '#2d6a2d', color: 'white', padding: '5px 6px', textAlign: 'left' as const, fontWeight: 'bold' as const },
+  td: { padding: '3px 6px', borderBottom: '1px solid #e0e0e0' },
+  tdAlt: { padding: '3px 6px', borderBottom: '1px solid #e0e0e0', background: '#f5f5f5' },
+  note: { fontSize: '10px', color: '#666', marginTop: '6px', fontStyle: 'italic' as const },
+  divider: { borderTop: '1px solid #ccc', margin: '10px 0' },
+};
+
+export default function PrintReport({ state, printMode, printDate }: Props) {
+  if (!printMode) return null;
+
+  const {
+    inputs, premiumSummary, revenueGuarantee, backtestYears,
+    clientName, farmName, yieldStability, topCoveragePct, countyAPH,
+    priceData, countyYieldData, optimizerResults,
+  } = state;
+
+  const stabilityFactor = STABILITY_FACTOR_MAP[yieldStability] ?? 1.0;
+  const stabilityLabel = STABILITY_LABEL[yieldStability] ?? 'Average';
+  const stabilityNote = STABILITY_NOTE[yieldStability] ?? 'tracks county directly';
 
   const crop = inputs.crop;
   const coveragePct = Math.round(inputs.coverageLevel * 100);
-  const priceHistory = priceData;
   const hailEvents = getHailEvents(inputs.county);
 
-  // Price change stats
-  const priceChanges: number[] = [];
-  for (let i = 0; i < priceHistory.years.length; i++) {
-    const proj = priceHistory.projectedPrices[i];
-    const harv = priceHistory.harvestPrices[i];
-    if (proj > 0 && harv > 0) priceChanges.push(harv - proj);
-  }
-  const downYears = priceChanges.filter(c => c < 0);
-  const avgDecline = downYears.length > 0 ? downYears.reduce((a, b) => a + b, 0) / downYears.length : 0;
-  const worstIdx = priceChanges.indexOf(Math.min(...priceChanges));
-  const bestIdx = priceChanges.indexOf(Math.max(...priceChanges));
+  // ── Section 3: Yield history chart data ──
+  const yieldChartData = countyYieldData
+    ? countyYieldData.years.map((yr, i) => {
+        const countyActual = countyYieldData.yields[i];
+        const trend = countyYieldData.trendAPH[i];
+        const simFarm = simulateFarmYields([countyActual], [trend], stabilityFactor)[0];
+        return { year: yr, countyTrend: trend, countyActual, simFarm };
+      })
+    : [];
 
-  // Backtest summary stats
+  // ── Section 4: Backtest chart data ──
   const numYears = backtestYears.length;
   const payYears = backtestYears.filter(r => r.totalIndemnity > 0).length;
-  const avgPrem = numYears > 0 ? backtestYears.reduce((s, r) => s + r.farmerPremium, 0) / numYears : 0;
+  const avgPrem = numYears > 0 ? backtestYears.reduce((s, r) => s + r.totalPremium, 0) / numYears : 0;
   const avgIndem = numYears > 0 ? backtestYears.reduce((s, r) => s + r.totalIndemnity, 0) / numYears : 0;
   const avgNet = avgIndem - avgPrem;
   const cumNet = backtestYears.reduce((s, r) => s + r.netPerAcre, 0);
+  const worstNet = numYears > 0 ? Math.min(...backtestYears.map(y => y.netPerAcre)) : 0;
 
-  const yieldLoss = backtestYears.filter(r => r.totalIndemnity > 0 && r.yieldLossBu > 0 && r.harvPrice >= r.projPrice).length;
-  const priceLoss = backtestYears.filter(r => r.totalIndemnity > 0 && r.harvPrice < r.projPrice && r.countyYield >= r.countyAPH).length;
-  const bothLoss = backtestYears.filter(r => r.totalIndemnity > 0 && r.harvPrice < r.projPrice && r.countyYield < r.countyAPH).length;
+  const yieldDriven = backtestYears.filter(r => r.totalIndemnity > 0 && r.yieldLossBu > 0 && r.harvPrice >= r.projPrice).length;
+  const priceDriven = backtestYears.filter(r => r.totalIndemnity > 0 && r.harvPrice < r.projPrice && r.countyYield >= r.countyAPH).length;
+  const bothDriven = backtestYears.filter(r => r.totalIndemnity > 0 && r.harvPrice < r.projPrice && r.countyYield < r.countyAPH).length;
 
-  // Uninsured exposure
-  const uninsuredPct = 100 - Math.round(topCoveragePct * 100);
-  const uninsuredRevenue = (uninsuredPct / 100) * revenueGuarantee;
+  let cumulative = 0;
+  const backtestChartData = backtestYears.map(r => {
+    cumulative += r.netPerAcre;
+    return {
+      year: r.year,
+      underlying: r.underlyingIndemnity,
+      sco: r.scoIndemnity,
+      eco: r.ecoIndemnity,
+      premium: -r.totalPremium,
+      cumNet: cumulative,
+    };
+  });
 
-  // Grain marketing
+  // ── Section 6: Price chart data ──
+  const priceChartData = priceData.years
+    .map((yr, i) => {
+      const proj = priceData.projectedPrices[i];
+      const harv = priceData.harvestPrices[i];
+      if (!proj || !harv || harv === 0) return null;
+      return { year: yr, change: harv - proj };
+    })
+    .filter(Boolean) as Array<{ year: number; change: number }>;
+
+  const priceChanges = priceChartData.map(d => d.change);
+  const downYears = priceChanges.filter(c => c < 0);
+  const avgDecline = downYears.length > 0 ? downYears.reduce((a, b) => a + b, 0) / downYears.length : 0;
+  const worstChange = priceChanges.length > 0 ? Math.min(...priceChanges) : 0;
+  const bestChange = priceChanges.length > 0 ? Math.max(...priceChanges) : 0;
+  const worstYear = priceData.years[priceChanges.indexOf(worstChange)] ?? '';
+  const bestYear = priceData.years[priceChanges.indexOf(bestChange)] ?? '';
+
+  // Marketing recommendation
+  const marketingRec = inputs.planType === 'RP'
+    ? coveragePct >= 80
+      ? 'Strong RP coverage. Consider forward-contracting 20–30% of expected bushels above your insurance guarantee to lock in margins without over-committing.'
+      : 'RP coverage below 80% leaves meaningful gaps. Prioritize forward-contracting bushels above your guarantee and consider puts for the uninsured band.'
+    : 'With YP (Yield Protection), you have no price protection from RP. All bushels are exposed to harvest price decline. Forward-contracting or options are strongly recommended.';
+
   const uninsuredBuPerAc = inputs.aphYield * (1 - inputs.coverageLevel);
   const totalUninsuredBu = uninsuredBuPerAc * inputs.acres;
   const atRiskValue = totalUninsuredBu * inputs.springPrice;
 
-  // Coverage description
-  let coverageStack = `${inputs.planType} ${coveragePct}%`;
-  if (inputs.scoEnabled) coverageStack += ' + SCO (to 86%)';
-  if (inputs.ecoLevel !== 'None') coverageStack += ` + ECO (to ${inputs.ecoLevel})`;
-
-  const stabilityText: Record<string, string> = {
-    more_stable: 'Your farm historically yields more consistently than county average. Trend-adjusted APH may slightly underestimate your actual performance.',
-    average: 'Your farm yield stability is consistent with county average. County backtest is a reasonable proxy for your farm performance.',
-    less_stable: 'Your farm yields are more variable than county average. Consider additional coverage layers to protect against yield swings.',
-  };
-
-  const marketingRec = inputs.planType === 'RP'
-    ? coveragePct >= 80
-      ? 'You have strong RP coverage. Consider forward-contracting 20–30% of expected bushels above your insurance guarantee to lock in margins without over-committing.'
-      : 'With RP coverage below 80%, your price floor has meaningful gaps. Prioritize forward-contracting bushels above your guarantee and consider puts for the uninsured band.'
-    : 'With YP (Yield Protection), you have no price protection from RP. All bushels are exposed to harvest price decline. Forward-contracting or options are strongly recommended.';
+  // Top 3 optimizer results
+  const top3 = optimizerResults.slice(0, 3);
+  const currentLabel = `${inputs.planType} ${coveragePct}% ${inputs.unitStructure === 'Enterprise' ? 'EU' : inputs.unitStructure === 'Basic' ? 'BU' : 'OU'}${inputs.scoEnabled ? ' + SCO' : ''}${inputs.ecoLevel !== 'None' ? ` + ${inputs.ecoLevel}` : ''}`;
+  const currentRank = optimizerResults.find(c => c.label === currentLabel)?.rank ?? null;
 
   return (
-    <div id="print-report">
-      <style>{`
-        @media print {
-          #print-report { display: block !important; }
-          body { background: white !important; }
-        }
-        @media screen {
-          #print-report { display: none !important; }
-        }
-      `}</style>
-
-      {/* ── PAGE 1: Cover / Summary ── */}
-      <div style={S.page}>
-        <div style={S.coverBox}>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#2d6a2d', marginBottom: '8px' }}>
-            🌾 B&B Agrisales
-          </div>
-          <div style={{ fontSize: '18px', color: '#333', marginBottom: '16px' }}>
-            Crop Insurance Decision Report
-          </div>
-          <div style={S.divider} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '13px', marginTop: '10px' }}>
-            <div><span style={S.label}>Prepared for:</span> <strong>{clientName || '—'}{farmName ? ` / ${farmName}` : ''}</strong></div>
-            <div><span style={S.label}>Date:</span> <strong>{printDate || new Date().toLocaleDateString()}</strong></div>
-            <div><span style={S.label}>County:</span> <strong>{inputs.county}</strong></div>
-            <div><span style={S.label}>Crop:</span> <strong style={{ textTransform: 'capitalize' }}>{crop}</strong></div>
-            <div><span style={S.label}>Agent:</span> <strong>B&B Agrisales, Fountain City WI</strong></div>
-            <div><span style={S.label}>Phone:</span> <strong>507-429-0165</strong></div>
+    <div
+      className="print-report-overlay"
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999, background: 'white',
+        overflow: 'auto', padding: '32px',
+        fontFamily: 'Georgia, serif', color: '#1a1a1a',
+      }}
+    >
+      {/* ── SECTION 1: Header ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img src="/root-risk-logo.jpg" alt="Root Risk Management" style={{ height: '40px', filter: 'none' }} />
+          <div>
+            <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#2d6a2d' }}>Root Risk Management</div>
+            <div style={{ fontSize: '12px', color: '#555' }}>Crop Insurance Decision Report</div>
           </div>
         </div>
-
-        <div style={S.h2}>POLICY SUMMARY</div>
-        <div style={S.row}><span style={S.label}>Plan:</span><span style={S.value}>{inputs.planType} {coveragePct}% {inputs.unitStructure} Unit</span></div>
-        <div style={S.row}><span style={S.label}>APH Yield:</span><span style={S.value}>{inputs.aphYield} bu/ac</span></div>
-        <div style={S.row}><span style={S.label}>Spring Price:</span><span style={S.value}>{fmtMoney(inputs.springPrice)}/bu</span></div>
-        <div style={S.row}><span style={S.label}>Coverage Stack:</span><span style={S.value}>{coverageStack}</span></div>
-        <div style={S.row}><span style={S.label}>Revenue Guarantee:</span><span style={S.value}>{fmtMoney(revenueGuarantee)}/ac</span></div>
-        <div style={S.row}><span style={S.label}>Acres:</span><span style={S.value}>{fmtComma(inputs.acres)} ac</span></div>
-
-        <div style={S.h2}>PREMIUM BREAKDOWN</div>
-        <div style={S.row}><span style={S.label}>Underlying gross premium:</span><span style={S.value}>{fmtMoney(premiumSummary.grossPremium)}/ac</span></div>
-        <div style={{ ...S.row, paddingLeft: '16px' }}><span style={S.label}>Government pays ({Math.round(premiumSummary.subsidyPct * 100)}%):</span><span style={S.value}>{fmtMoney(premiumSummary.subsidyAmount)}/ac</span></div>
-        <div style={{ ...S.row, paddingLeft: '16px' }}><span style={S.label}>Your cost:</span><span style={S.value}>{fmtMoney(premiumSummary.farmerPremium)}/ac</span></div>
-        {inputs.scoEnabled && <div style={S.row}><span style={S.label}>SCO premium (farmer cost):</span><span style={S.value}>{fmtMoney(premiumSummary.scoPremium)}/ac</span></div>}
-        {inputs.ecoLevel !== 'None' && <div style={S.row}><span style={S.label}>ECO premium (farmer cost):</span><span style={S.value}>{fmtMoney(premiumSummary.ecoPremium)}/ac</span></div>}
-        <div style={S.divider} />
-        <div style={S.total}><span>TOTAL FARMER COST:</span><span>{fmtMoney(premiumSummary.totalFarmerPremium)}/ac</span></div>
-        <div style={S.row}><span style={S.label}>Total for {fmtComma(inputs.acres)} acres:</span><span style={S.value}>{fmtMoney(premiumSummary.totalFarmerPremium * inputs.acres)}/yr</span></div>
-        <div style={S.row}><span style={S.label}>Government subsidy value:</span><span style={S.value}>{fmtMoney(premiumSummary.subsidyAmount)}/ac</span></div>
-        <p style={S.note}>* Estimated. Actual premium determined at policy issuance by RMA.</p>
-      </div>
-
-      {/* ── PAGE 2: Historical Backtest ── */}
-      <div style={S.page}>
-        <div style={S.h2}>HISTORICAL BACKTEST — {numYears}-YEAR ANALYSIS</div>
-        <p style={{ fontSize: '13px', color: '#444', margin: '0 0 12px 0' }}>
-          Using {inputs.county} county yields (USDA NASS) · {crop} · {inputs.planType} {coveragePct}%
-        </p>
-
-        <div style={S.h3}>SUMMARY STATISTICS</div>
-        <div style={S.row}><span style={S.label}>Years analyzed:</span><span style={S.value}>{numYears} ({backtestYears[0]?.year ?? '—'}–{backtestYears[backtestYears.length - 1]?.year ?? '—'})</span></div>
-        <div style={S.row}><span style={S.label}>Years with payment:</span><span style={S.value}>{payYears} of {numYears} ({numYears > 0 ? Math.round(payYears / numYears * 100) : 0}%)</span></div>
-        <div style={S.row}><span style={S.label}>Average farmer premium:</span><span style={S.value}>{fmtMoney(avgPrem)}/ac/yr</span></div>
-        <div style={S.row}><span style={S.label}>Average indemnity:</span><span style={S.value}>{fmtMoney(avgIndem)}/ac/yr</span></div>
-        <div style={S.row}><span style={S.label}>Average net:</span><span style={S.value}>{avgNet >= 0 ? '+' : ''}{fmtMoney(avgNet)}/ac/yr</span></div>
-        <div style={S.row}><span style={S.label}>Cumulative net ({numYears}yr):</span><span style={S.value}>{cumNet >= 0 ? '+' : ''}{fmtMoney(cumNet)}/ac</span></div>
-
-        <div style={S.h3}>Cause of loss breakdown:</div>
-        <div style={S.row}><span style={S.label}>  Yield-driven losses:</span><span style={S.value}>{yieldLoss} years</span></div>
-        <div style={S.row}><span style={S.label}>  Price-driven losses:</span><span style={S.value}>{priceLoss} years</span></div>
-        <div style={S.row}><span style={S.label}>  Both yield + price:</span><span style={S.value}>{bothLoss} years</span></div>
-
-        <div style={S.h3}>YEAR-BY-YEAR TABLE</div>
-        <table style={S.table}>
-          <thead>
-            <tr>
-              <th style={S.th}>Year</th>
-              <th style={S.th}>Yield</th>
-              <th style={S.th}>Expected</th>
-              <th style={S.th}>Harv $</th>
-              <th style={S.th}>Rev Ratio</th>
-              <th style={S.th}>Payment</th>
-              <th style={S.th}>Premium</th>
-              <th style={S.th}>Net</th>
-            </tr>
-          </thead>
-          <tbody>
-            {backtestYears.map((r, i) => (
-              <tr key={r.year}>
-                <td style={i % 2 === 0 ? S.td : S.tdAlt}>{r.year}</td>
-                <td style={i % 2 === 0 ? S.td : S.tdAlt}>{fmt(r.countyYield, 1)}</td>
-                <td style={i % 2 === 0 ? S.td : S.tdAlt}>{fmt(r.countyAPH, 1)}</td>
-                <td style={i % 2 === 0 ? S.td : S.tdAlt}>${fmt(r.harvPrice, 2)}</td>
-                <td style={i % 2 === 0 ? S.td : S.tdAlt}>{fmt(r.countyRevenueRatio * 100, 1)}%</td>
-                <td style={i % 2 === 0 ? S.td : S.tdAlt}>{r.totalIndemnity > 0 ? fmtMoney(r.totalIndemnity) : '—'}</td>
-                <td style={i % 2 === 0 ? S.td : S.tdAlt}>{fmtMoney(r.farmerPremium)}</td>
-                <td style={i % 2 === 0 ? S.td : S.tdAlt}>{r.netPerAcre >= 0 ? '+' : ''}{fmtMoney(r.netPerAcre)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* ── PAGE 3: Coverage Analysis ── */}
-      <div style={S.page}>
-        <div style={S.h2}>COVERAGE ANALYSIS</div>
-
-        <div style={S.h3}>Your Coverage Stack:</div>
-        <div style={{ fontSize: '13px', lineHeight: '1.8', paddingLeft: '12px' }}>
-          <div>• <strong>{inputs.planType} {coveragePct}%</strong> — covers revenue losses below {coveragePct}% of expected</div>
-          {inputs.scoEnabled && <div>• <strong>SCO</strong> — fills gap from {coveragePct}% to 86%</div>}
-          {inputs.ecoLevel !== 'None' && <div>• <strong>ECO ({inputs.ecoLevel})</strong> — fills gap above 86% to {inputs.ecoLevel}</div>}
-          <div>• Top coverage: <strong>{Math.round(topCoveragePct * 100)}%</strong> of expected revenue</div>
+        <div style={{ fontSize: '12px', textAlign: 'right', color: '#444', lineHeight: '1.6' }}>
+          {clientName && <div><strong>Client:</strong> {clientName}{farmName ? ` / ${farmName}` : ''}</div>}
+          <div><strong>Date:</strong> {printDate || new Date().toLocaleDateString()}</div>
+          <div><strong>County:</strong> {inputs.county} &nbsp;|&nbsp; <strong>Crop:</strong> <span style={{ textTransform: 'capitalize' }}>{crop}</span></div>
         </div>
+      </div>
+      <div style={S.divider} />
 
-        <div style={{ ...S.divider, marginTop: '16px' }} />
+      {/* ── SECTION 2: Policy Summary + Premium Breakdown ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+        <div>
+          <div style={S.h2}>POLICY SUMMARY</div>
+          <div style={S.row}><span style={S.label}>Plan:</span><span style={S.value}>{inputs.planType} {coveragePct}% {inputs.unitStructure} Unit</span></div>
+          <div style={S.row}><span style={S.label}>APH Yield:</span><span style={S.value}>{inputs.aphYield} bu/ac</span></div>
+          <div style={S.row}><span style={S.label}>Acres:</span><span style={S.value}>{fmtComma(inputs.acres)} ac</span></div>
+          <div style={S.row}><span style={S.label}>Spring Price:</span><span style={S.value}>{fmtMoney(inputs.springPrice)}/bu</span></div>
+          <div style={S.row}><span style={S.label}>Revenue Guarantee:</span><span style={S.value}>{fmtMoney(revenueGuarantee)}/ac</span></div>
+          {inputs.scoEnabled && <div style={S.row}><span style={S.label}>SCO:</span><span style={S.value}>Enabled (to 86%)</span></div>}
+          {inputs.ecoLevel !== 'None' && <div style={S.row}><span style={S.label}>ECO:</span><span style={S.value}>{inputs.ecoLevel}</span></div>}
+          <div style={S.row}><span style={S.label}>Top Coverage:</span><span style={S.value}>{Math.round(topCoveragePct * 100)}%</span></div>
+        </div>
+        <div>
+          <div style={S.h2}>PREMIUM BREAKDOWN</div>
+          <div style={S.row}><span style={S.label}>Underlying gross premium:</span><span style={S.value}>{fmtMoney(premiumSummary.underlying.gross)}/ac</span></div>
+          <div style={{ ...S.row, paddingLeft: '12px' }}><span style={S.label}>Govt pays ({Math.round(premiumSummary.underlying.subsidyPct * 100)}%):</span><span style={S.value}>{fmtMoney(premiumSummary.underlying.govtPays)}/ac</span></div>
+          <div style={{ ...S.row, paddingLeft: '12px' }}><span style={S.label}>Your cost:</span><span style={S.value}>{fmtMoney(premiumSummary.underlying.farmerPays)}/ac</span></div>
+          {inputs.scoEnabled && <div style={S.row}><span style={S.label}>SCO (farmer cost):</span><span style={S.value}>{fmtMoney(premiumSummary.sco.farmerPays)}/ac</span></div>}
+          {inputs.ecoLevel !== 'None' && <div style={S.row}><span style={S.label}>ECO (farmer cost):</span><span style={S.value}>{fmtMoney(premiumSummary.eco.farmerPays)}/ac</span></div>}
+          <div style={{ ...S.divider, margin: '6px 0' }} />
+          <div style={{ ...S.row, fontWeight: 'bold', fontSize: '13px' }}>
+            <span>TOTAL/ac:</span><span>{fmtMoney(premiumSummary.totalFarmerPerAcre)}/ac</span>
+          </div>
+          <div style={S.row}><span style={S.label}>Total for {fmtComma(inputs.acres)} acres:</span><span style={S.value}>{fmtMoney(premiumSummary.totalFarmerAllAcres)}/yr</span></div>
+        </div>
+      </div>
 
-        <div style={{ background: '#fff8f0', border: '1px solid #e0a060', borderRadius: '6px', padding: '12px 16px', margin: '12px 0', fontSize: '13px' }}>
-          <strong>Uninsured Exposure: {uninsuredPct}% of APH revenue ≈ {fmtMoney(uninsuredRevenue)}/ac</strong>
-          <p style={{ margin: '4px 0 0 0', color: '#555' }}>
-            This is the portion exposed to yield AND price risk with no indemnity.
+      {/* ── SECTION 3: Simulated Farm Yield History Chart ── */}
+      <div style={S.h2}>FARM YIELD HISTORY — {stabilityLabel.toUpperCase()} STABILITY vs COUNTY AVERAGE</div>
+      {yieldChartData.length > 0 && (
+        <div style={{ background: 'white' }}>
+          <ComposedChart width={700} height={200} data={yieldChartData} margin={{ top: 4, right: 20, bottom: 4, left: 0 }}>
+            <XAxis dataKey="year" tick={{ fontSize: 10 }} />
+            <YAxis tick={{ fontSize: 10 }} label={{ value: 'bu/ac', angle: -90, position: 'insideLeft', fontSize: 10 }} />
+            <Tooltip formatter={(v: number) => v.toFixed(1) + ' bu'} />
+            <Legend wrapperStyle={{ fontSize: '11px' }} />
+            <Line type="monotone" dataKey="countyTrend" name="County Trend APH" stroke="#999" strokeDasharray="5 5" dot={false} strokeWidth={1} />
+            <Line type="monotone" dataKey="countyActual" name="County Actual Yield" stroke="#3b82f6" dot={false} strokeWidth={1.5} />
+            <Line type="monotone" dataKey="simFarm" name="Simulated Farm Yield" stroke="#16a34a" dot={false} strokeWidth={2.5} />
+          </ComposedChart>
+          <p style={S.note}>
+            Simulated farm yields based on '{yieldStability}' stability setting — {stabilityNote}.
+            Formula: farmYield = countyTrend + (countyActual − countyTrend) × {stabilityFactor}
           </p>
         </div>
+      )}
 
-        <div style={S.h2}>YIELD STABILITY NOTE</div>
-        <div style={S.row}>
-          <span style={S.label}>Farm yield stability:</span>
-          <span style={S.value}>
-            {yieldStability === 'more_stable' ? 'More Stable' : yieldStability === 'less_stable' ? 'Less Stable' : 'Average'} than county average
-          </span>
-        </div>
-        <p style={{ fontSize: '13px', color: '#444', marginTop: '6px' }}>
-          {stabilityText[yieldStability]}
-        </p>
+      {/* ── SECTION 4: Backtest + Optimizer Combined ── */}
+      <div style={S.h2}>HISTORICAL PERFORMANCE ANALYSIS — {numYears}-YEAR BACKTEST</div>
 
-        {hailEvents.length > 0 && (
-          <>
-            <div style={S.h2}>HAIL EXPOSURE WARNING</div>
-            <p style={{ fontSize: '13px', color: '#333', marginBottom: '8px' }}>
-              At {coveragePct}% RP, the top {100 - coveragePct}% of your crop value is not covered by the underlying policy.
-              Historical hail events in {inputs.county}:
-            </p>
-            <table style={S.table}>
-              <thead>
-                <tr>
-                  <th style={S.th}>Year</th>
-                  <th style={S.th}>Date</th>
-                  <th style={S.th}>Size</th>
-                  <th style={S.th}>Intensity</th>
-                  <th style={S.th}>Est. Damage</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hailEvents.map((e, i) => (
-                  <tr key={i}>
-                    <td style={S.td}>{e.year}</td>
-                    <td style={S.td}>{e.date}</td>
-                    <td style={S.td}>{e.size}</td>
-                    <td style={S.td}>{e.intensity}</td>
-                    <td style={S.td}>{e.estimatedDamage}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p style={{ ...S.note, color: '#b54', marginTop: '10px', fontStyle: 'normal' }}>
-              Consider standalone hail insurance to cover this exposure ($5–15/ac typical).
-            </p>
-          </>
-        )}
+      {/* Sub-section A: Stats grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '8px', marginBottom: '12px' }}>
+        {[
+          { label: 'Years w/ Payment', val: `${payYears} / ${numYears} (${numYears > 0 ? Math.round(payYears/numYears*100) : 0}%)` },
+          { label: 'Avg Premium/yr', val: `${fmtMoney(avgPrem)}/ac` },
+          { label: 'Avg Indemnity/yr', val: `${fmtMoney(avgIndem)}/ac` },
+          { label: 'Avg Net/yr', val: `${avgNet >= 0 ? '+' : ''}${fmtMoney(avgNet)}/ac` },
+          { label: 'Worst Year Net', val: `${worstNet >= 0 ? '+' : ''}${fmtMoney(worstNet)}/ac` },
+          { label: `Cumulative Net (${numYears}yr)`, val: `${cumNet >= 0 ? '+' : ''}${fmtMoney(cumNet)}/ac` },
+        ].map(({ label, val }) => (
+          <div key={label} style={{ background: '#f8f8f8', border: '1px solid #ddd', borderRadius: '4px', padding: '6px 10px' }}>
+            <div style={{ fontSize: '10px', color: '#666' }}>{label}</div>
+            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>{val}</div>
+          </div>
+        ))}
       </div>
 
-      {/* ── PAGE 4: Grain Marketing & Key Dates ── */}
-      <div style={S.lastPage}>
-        <div style={S.h2}>GRAIN MARKETING RISK SUMMARY</div>
-        <div style={S.row}><span style={S.label}>2026 Spring Price (projected):</span><span style={S.value}>{fmtMoney(inputs.springPrice)}/bu</span></div>
-        <div style={S.row}><span style={S.label}>Coverage guarantee:</span><span style={S.value}>{fmtMoney(revenueGuarantee)}/ac</span></div>
-        <div style={S.row}><span style={S.label}>Insured revenue band:</span><span style={S.value}>{fmtMoney(revenueGuarantee * inputs.coverageLevel)} – {fmtMoney(revenueGuarantee)}/ac</span></div>
-
-        <div style={S.h3}>Unpriced bushels above guarantee:</div>
-        <div style={{ ...S.row, paddingLeft: '12px' }}><span style={S.label}>{fmt(uninsuredBuPerAc, 1)} bu/ac × {fmtComma(inputs.acres)} ac:</span><span style={S.value}>{fmtComma(Math.round(totalUninsuredBu))} bu total</span></div>
-        <div style={{ ...S.row, paddingLeft: '12px' }}><span style={S.label}>At current price:</span><span style={S.value}>${fmtComma(Math.round(atRiskValue))} at risk to price movement</span></div>
-
-        <div style={S.h3}>Historical spring→fall price changes ({crop}, {priceHistory.years[0]}–{priceHistory.years[priceHistory.years.length - 1]}):</div>
-        <div style={{ ...S.row, paddingLeft: '12px' }}><span style={S.label}>Prices fell spring→fall:</span><span style={S.value}>{downYears.length} of {priceChanges.length} years ({Math.round(downYears.length / priceChanges.length * 100)}%)</span></div>
-        <div style={{ ...S.row, paddingLeft: '12px' }}><span style={S.label}>Average decline (down yrs):</span><span style={S.value}>{fmtMoney(avgDecline)}/bu</span></div>
-        {priceChanges.length > 0 && <>
-          <div style={{ ...S.row, paddingLeft: '12px' }}><span style={S.label}>Worst decline:</span><span style={S.value}>{priceHistory.years[worstIdx]}: {fmtMoney(priceChanges[worstIdx])}/bu</span></div>
-          <div style={{ ...S.row, paddingLeft: '12px' }}><span style={S.label}>Best rally:</span><span style={S.value}>{priceHistory.years[bestIdx]}: +{fmtMoney(priceChanges[bestIdx])}/bu</span></div>
-        </>}
-
-        <div style={{ background: '#f0f8f0', border: '1px solid #2d6a2d', borderRadius: '6px', padding: '12px 16px', margin: '16px 0', fontSize: '13px' }}>
-          <strong>MARKETING RECOMMENDATION:</strong>
-          <p style={{ margin: '4px 0 0 0', color: '#333' }}>{marketingRec}</p>
+      {/* Sub-section B: Chart */}
+      {backtestChartData.length > 0 && (
+        <div style={{ background: 'white' }}>
+          <ComposedChart width={800} height={220} data={backtestChartData} margin={{ top: 4, right: 20, bottom: 4, left: 0 }}>
+            <XAxis dataKey="year" tick={{ fontSize: 9 }} />
+            <YAxis yAxisId="left" tick={{ fontSize: 9 }} />
+            <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 9 }} />
+            <Tooltip formatter={(v: number) => fmtMoney(Math.abs(v))} />
+            <Legend wrapperStyle={{ fontSize: '10px' }} />
+            <ReferenceLine yAxisId="left" y={0} stroke="#666" />
+            <Bar yAxisId="left" dataKey="underlying" name="Underlying" stackId="a" fill="#3b82f6" />
+            <Bar yAxisId="left" dataKey="sco" name="SCO" stackId="a" fill="#a855f7" />
+            <Bar yAxisId="left" dataKey="eco" name="ECO" stackId="a" fill="#14b8a6" />
+            <Bar yAxisId="left" dataKey="premium" name="Premium" fill="#ef4444" />
+            <Line yAxisId="right" type="monotone" dataKey="cumNet" name="Cum. Net" stroke="#f97316" dot={false} strokeWidth={2} />
+          </ComposedChart>
         </div>
+      )}
 
-        <div style={S.h2}>KEY DATES — 2026 CROP YEAR</div>
-        <table style={S.table}>
-          <thead>
-            <tr>
-              <th style={S.th}>Date</th>
-              <th style={S.th}>Event</th>
-              <th style={S.th}>Days</th>
-              <th style={S.th}>Notes</th>
+      {/* Sub-section C: Cause of loss */}
+      <div style={{ fontSize: '12px', color: '#444', margin: '6px 0' }}>
+        <strong>Cause of loss:</strong>&nbsp;
+        Yield-driven: <strong>{yieldDriven} yrs</strong> &nbsp;|&nbsp;
+        Price-driven: <strong>{priceDriven} yrs</strong> &nbsp;|&nbsp;
+        Both: <strong>{bothDriven} yrs</strong>
+      </div>
+
+      {/* Sub-section D: Year table */}
+      <table style={S.table}>
+        <thead>
+          <tr>
+            <th style={S.th}>Year</th>
+            <th style={S.th}>Farm Yield</th>
+            <th style={S.th}>County Yield</th>
+            <th style={S.th}>Rev Ratio</th>
+            <th style={S.th}>Cause</th>
+            <th style={S.th}>Payment</th>
+            <th style={S.th}>Premium</th>
+            <th style={S.th}>Net</th>
+          </tr>
+        </thead>
+        <tbody>
+          {backtestYears.map((r, i) => (
+            <tr key={r.year}>
+              <td style={i % 2 === 0 ? S.td : S.tdAlt}>{r.year}</td>
+              <td style={i % 2 === 0 ? S.td : S.tdAlt}>{fmt(r.farmYield, 1)}</td>
+              <td style={i % 2 === 0 ? S.td : S.tdAlt}>{fmt(r.countyYield, 1)}</td>
+              <td style={i % 2 === 0 ? S.td : S.tdAlt}>{fmt(r.countyRevenueRatio * 100, 1)}%</td>
+              <td style={i % 2 === 0 ? S.td : S.tdAlt}>{r.causeTags.join(', ')}</td>
+              <td style={i % 2 === 0 ? S.td : S.tdAlt}>{r.totalIndemnity > 0 ? fmtMoney(r.totalIndemnity) : '—'}</td>
+              <td style={i % 2 === 0 ? S.td : S.tdAlt}>{fmtMoney(r.totalPremium)}</td>
+              <td style={{ ...(i % 2 === 0 ? S.td : S.tdAlt), color: r.netPerAcre >= 0 ? '#16a34a' : '#dc2626', fontWeight: 'bold' }}>
+                {r.netPerAcre >= 0 ? '+' : ''}{fmtMoney(r.netPerAcre)}
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {KEY_DATES_2026.map((d, i) => {
-              const days = getDaysUntil(d.date);
-              return (
-                <tr key={d.id}>
-                  <td style={i % 2 === 0 ? S.td : S.tdAlt}>{d.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                  <td style={i % 2 === 0 ? S.td : S.tdAlt}><strong>{d.label}</strong></td>
-                  <td style={i % 2 === 0 ? S.td : S.tdAlt}>{days > 0 ? `${days}d` : 'PAST'}</td>
-                  <td style={i % 2 === 0 ? S.td : S.tdAlt}>{d.description}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+          ))}
+        </tbody>
+      </table>
 
-        <div style={{ ...S.divider, marginTop: '24px' }} />
-        <p style={{ fontSize: '11px', color: '#666', lineHeight: '1.6' }}>
-          <strong>DISCLAIMER</strong> — This report is for informational and planning purposes only. Premium estimates are
-          approximate and will be determined at policy issuance by your RMA-approved insurance provider. County yield data
-          sourced from USDA NASS. Price data from RMA historical projected/harvest price tables. Consult your crop
-          insurance agent for final quotes and coverage decisions.
-        </p>
-        <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#2d6a2d', marginTop: '8px' }}>
-          B&B Agrisales · Fountain City, WI · 507-429-0165
-        </p>
+      {/* ── SECTION 5: Optimizer Recommendation ── */}
+      <div style={S.h2}>OPTIMIZER RECOMMENDATION</div>
+      {optimizerResults.length > 0 ? (
+        <div>
+          <div style={{ fontSize: '11px', color: '#555', marginBottom: '8px' }}>
+            Based on {numYears}-year history · {stabilityLabel} farm stability
+          </div>
+          {top3.map((c, i) => (
+            <div key={c.label} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '6px 10px', marginBottom: '4px', borderRadius: '4px',
+              background: i === 0 ? '#f0fdf4' : '#fafafa',
+              border: `1px solid ${i === 0 ? '#86efac' : '#e0e0e0'}`,
+              fontSize: '12px',
+            }}>
+              <div>
+                <strong>#{c.rank}{i === 0 ? ' BEST VALUE' : ''}:</strong> {c.label}
+              </div>
+              <div style={{ fontWeight: 'bold', color: c.stabilityAdjustedNet >= 0 ? '#16a34a' : '#dc2626' }}>
+                Adj. Net: {c.stabilityAdjustedNet >= 0 ? '+' : ''}{fmtMoney(c.stabilityAdjustedNet)}/ac/yr
+              </div>
+            </div>
+          ))}
+          <div style={{ fontSize: '11px', color: '#444', marginTop: '8px' }}>
+            Current selection: <strong>{currentLabel}</strong>{currentRank ? ` (ranked #${currentRank} of ${optimizerResults.length})` : ''}
+          </div>
+          {hailEvents.length > 0 && (
+            <div style={{ background: '#fff8f0', border: '1px solid #e0a060', borderRadius: '4px', padding: '8px 12px', marginTop: '10px', fontSize: '11px' }}>
+              ⚠️ <strong>Hail Exposure:</strong> {hailEvents.length} hail events recorded in {inputs.county} since 2000. At {coveragePct}% coverage, the top {100 - coveragePct}% of crop value is uninsured. Consider standalone hail insurance ($5–15/ac).
+            </div>
+          )}
+        </div>
+      ) : (
+        <p style={{ fontSize: '12px', color: '#666', fontStyle: 'italic' }}>Run the Optimizer tab to see personalized recommendations.</p>
+      )}
+
+      {/* ── SECTION 6: Grain Marketing Risk ── */}
+      <div style={S.h2}>GRAIN MARKETING RISK</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        <div>
+          <div style={S.row}><span style={S.label}>Uninsured bu/ac:</span><span style={S.value}>{fmt(uninsuredBuPerAc, 1)} bu/ac</span></div>
+          <div style={S.row}><span style={S.label}>Total uninsured bu:</span><span style={S.value}>{fmtComma(Math.round(totalUninsuredBu))} bu</span></div>
+          <div style={S.row}><span style={S.label}>At-risk value:</span><span style={S.value}>${fmtComma(Math.round(atRiskValue))}</span></div>
+          <div style={{ ...S.divider, margin: '8px 0' }} />
+          <div style={S.row}><span style={S.label}>Prices fell spring→fall:</span><span style={S.value}>{downYears.length} / {priceChanges.length} yrs ({Math.round(downYears.length / Math.max(priceChanges.length, 1) * 100)}%)</span></div>
+          <div style={S.row}><span style={S.label}>Avg decline (down yrs):</span><span style={S.value}>{fmtMoney(avgDecline)}/bu</span></div>
+          <div style={S.row}><span style={S.label}>Worst drop:</span><span style={S.value}>{worstYear}: {fmtMoney(worstChange)}/bu</span></div>
+          <div style={S.row}><span style={S.label}>Best rally:</span><span style={S.value}>{bestYear}: +{fmtMoney(bestChange)}/bu</span></div>
+          <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '4px', padding: '8px', marginTop: '10px', fontSize: '11px' }}>
+            <strong>Marketing Rec:</strong> {marketingRec}
+          </div>
+        </div>
+        <div>
+          {priceChartData.length > 0 && (
+            <ComposedChart width={320} height={150} data={priceChartData} margin={{ top: 4, right: 10, bottom: 4, left: 0 }}>
+              <XAxis dataKey="year" tick={{ fontSize: 9 }} />
+              <YAxis tick={{ fontSize: 9 }} />
+              <Tooltip formatter={(v: number) => fmtMoney(v)} />
+              <ReferenceLine y={0} stroke="#666" />
+              <Bar dataKey="change" name="Spring→Fall Change">
+                {priceChartData.map((entry, i) => (
+                  <Cell key={i} fill={entry.change >= 0 ? '#16a34a' : '#dc2626'} />
+                ))}
+              </Bar>
+            </ComposedChart>
+          )}
+          <p style={{ fontSize: '10px', color: '#666', marginTop: '2px', textAlign: 'center' }}>
+            Spring→Fall {crop} price change ($/bu) by year
+          </p>
+        </div>
       </div>
+
+      {/* ── SECTION 7: Key Dates + Disclaimer ── */}
+      <div style={S.h2}>KEY DATES — 2026 CROP YEAR</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', fontSize: '11px', marginBottom: '16px' }}>
+        {KEY_DATES_2026.map(d => {
+          const days = getDaysUntil(d.date);
+          return (
+            <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid #eee' }}>
+              <span style={{ color: '#444' }}>
+                <strong>{d.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</strong> — {d.label}
+              </span>
+              <span style={{ fontWeight: 'bold', color: days <= 0 ? '#999' : days <= 14 ? '#dc2626' : '#555' }}>
+                {days > 0 ? `${days}d` : 'PAST'}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={S.divider} />
+      <p style={{ fontSize: '10px', color: '#666', lineHeight: '1.6' }}>
+        <strong>DISCLAIMER</strong> — This report is for informational and planning purposes only. Premium estimates are
+        approximate and will be determined at policy issuance by your RMA-approved insurance provider. County yield data
+        sourced from USDA NASS. Price data from RMA historical projected/harvest price tables. Simulated farm yields are
+        model-based estimates and do not represent actual APH or RMA-certified yields. Consult your crop insurance agent
+        for final quotes and coverage decisions.
+      </p>
+      <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#2d6a2d', marginTop: '6px' }}>
+        Root Risk Management · Fountain City, WI · 507-429-0165
+      </p>
     </div>
   );
 }
