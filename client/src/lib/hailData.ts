@@ -35,7 +35,7 @@ async function fetchIEMHailYearState(state: string, year: number): Promise<HailE
       const props = feature.properties ?? {};
       if ((props.typetext ?? '').toUpperCase() !== 'HAIL') continue;
       const sizeIn: number = (props.magf ?? parseFloat(props.magnitude) ?? 0) || 0;
-      if (sizeIn < 0.75) continue;
+      if (sizeIn < 0.25) continue;
       const lngVal: number = props.lon ?? feature.geometry?.coordinates?.[0];
       const latVal: number = props.lat ?? feature.geometry?.coordinates?.[1];
       if (!latVal || !lngVal) continue;

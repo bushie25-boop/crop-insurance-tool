@@ -13,17 +13,19 @@ L.Icon.Default.mergeOptions({
 });
 
 function getMarkerColor(size: number): string {
-  if (size >= 2.0) return '#ef4444';  // XL red — giant hail
+  if (size >= 2.0) return '#ef4444';  // XL red — golf ball+
   if (size >= 1.5) return '#dc2626';  // large red
-  if (size >= 1.0) return '#f97316';  // orange — significant
-  return '#eab308';                   // yellow — 0.75"–0.99"
+  if (size >= 1.0) return '#f97316';  // orange — quarter size
+  if (size >= 0.75) return '#eab308'; // yellow — penny/dime size
+  return '#6b7280';                   // gray — small (0.25"–0.74")
 }
 
 function getMarkerRadius(size: number): number {
   if (size >= 2.0) return 11;
   if (size >= 1.5) return 8;
   if (size >= 1.0) return 6;
-  return 4;  // 0.75"–0.99"
+  if (size >= 0.75) return 4;
+  return 3;  // 0.25"–0.74" small hail
 }
 
 function getMarkerWeight(size: number): number {
@@ -107,7 +109,7 @@ export default function HailMap({ selectedCounty }: Props) {
         <p className="text-xs text-slate-400">
           {loadingHail
             ? `Loading IEM/SPC data... ${loadPct}%`
-            : <>{hailEvents.length} events loaded (IEM/SPC data, ≥0.75") · {filtered.length} shown{selectedYear !== 'all' ? ` through ${selectedYear}` : ' (all years)'}</>
+            : <>{hailEvents.length} events loaded (IEM/SPC data, ≥0.25") · {filtered.length} shown{selectedYear !== 'all' ? ` through ${selectedYear}` : ' (all years)'}</>
           }
           <span className="ml-2 text-slate-500">· Click any pin for details</span>
         </p>
@@ -196,8 +198,9 @@ export default function HailMap({ selectedCounty }: Props) {
       <div className="flex flex-wrap gap-3 text-xs">
         <span className="text-slate-400">Hail size:</span>
         {[
-          { color: '#eab308', label: '0.75"–0.99"', r: 4 },
-          { color: '#f97316', label: '1.0"–1.49"', r: 6 },
+          { color: '#6b7280', label: '0.25"–0.74" (small)', r: 3 },
+          { color: '#eab308', label: '0.75"–0.99" (dime/penny)', r: 4 },
+          { color: '#f97316', label: '1.0"–1.49" (quarter)', r: 6 },
           { color: '#dc2626', label: '1.5"–1.99"', r: 8 },
           { color: '#ef4444', label: '≥ 2.0" (golf ball+)', r: 11 },
         ].map(({ color, label, r }) => (
