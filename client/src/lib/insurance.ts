@@ -80,12 +80,14 @@ export const UNIT_MULTIPLIER: Record<UnitStructure, number> = {
   Optional: 2.2,
 };
 
-// SCO/ECO rate estimates (% of band liability)
-const SCO_COUNTY_RATE = 0.035; // ~3.5% of band liability (estimate)
+// Calibrated to Storm O'Day benchmark: SCO ~$3–8/ac farmer net, ECO-90 ~$2–5, ECO-95 ~$4–8
+// (post-OBBBA 80% subsidy applied)
+// ⚠️ ESTIMATES — verify at: ewebapp.rma.usda.gov/apps/costestimator/
+const SCO_COUNTY_RATE = 0.35;
 const ECO_RATE: Record<ECOLevel, number> = {
   None: 0,
-  'ECO-90': 0.040,
-  'ECO-95': 0.055,
+  'ECO-90': 0.38,
+  'ECO-95': 0.34,
 };
 
 // ─── Core formulas ────────────────────────────────────────────────────────────
