@@ -1,5 +1,5 @@
 // useInsurance.ts — shared state + calculations
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   type InsuranceInputs,
   type County,
@@ -41,6 +41,7 @@ export type BacktestWindow = 5 | 10 | 15 | 20 | 25 | 'all';
 export function useInsurance() {
   const [inputs, setInputs] = useState<InsuranceInputs>(DEFAULT_INPUTS);
   const [backtestWindow, setBacktestWindow] = useState<BacktestWindow>(15);
+  const [assumedYield2026, setAssumedYield2026] = useState<number>(173);
 
   function updateInput<K extends keyof InsuranceInputs>(key: K, value: InsuranceInputs[K]) {
     setInputs(prev => {
@@ -99,6 +100,25 @@ export function useInsurance() {
     return aphs[aphs.length - 1] ?? inputs.aphYield;
   }, [countyYieldData, inputs.aphYield]);
 
+  // Reset assumedYield2026 whenever county or crop changes
+  useEffect(() => {
+    setAssumedYield2026(countyAPH);
+  }, [inputs.county, inputs.crop, countyAPH]);
+
+  // 2026 single-year projection row
+  const assumed2026Row = useMemo(() => {
+    const projPrice2026 = inputs.crop === 'corn' ? 4.61 : 11.07;
+    const row = runBacktest(
+      inputs,
+      [assumedYield2026],
+      [countyAPH],
+      [projPrice2026],
+      [projPrice2026], // harvest unknown — use projected as proxy
+      2026
+    );
+    return row[0] ?? null;
+  }, [inputs, assumedYield2026, countyAPH]);
+
   const heatmap = useMemo(() => generateHeatmap(inputs, countyAPH), [inputs, countyAPH]);
 
   const comparisonTable = useMemo(() => {
@@ -145,6 +165,10 @@ export function useInsurance() {
     // Backtest window
     backtestWindow,
     setBacktestWindow,
+    // 2026 assumption
+    assumedYield2026,
+    setAssumedYield2026,
+    assumed2026Row,
   };
 }
 

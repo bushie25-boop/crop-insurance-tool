@@ -21,11 +21,11 @@ const WINDOW_OPTIONS: Array<{ label: string; value: import('../hooks/useInsuranc
   { label: '15 yr', value: 15 },
   { label: '20 yr', value: 20 },
   { label: '25 yr', value: 25 },
-  { label: 'All (25)', value: 'all' },
+  { label: 'All (26)', value: 'all' },
 ];
 
 export default function HistoricalBacktest({ state }: Props) {
-  const { backtestYears, backtestSummary, inputs, backtestWindow, setBacktestWindow } = state;
+  const { backtestYears, backtestSummary, inputs, backtestWindow, setBacktestWindow, countyAPH } = state;
   const hailEvents = getHailEvents(inputs.county);
   const [showExplainer, setShowExplainer] = useState(false);
 
@@ -62,6 +62,28 @@ export default function HistoricalBacktest({ state }: Props) {
       revenueShortfall: parseFloat(yr.revenueShortfall.toFixed(2)),
     };
   });
+
+  // 2026 projection bar
+  const projected2026 = {
+    year: 2026,
+    underlying: state.assumed2026Row?.underlyingIndemnity ?? 0,
+    sco: state.assumed2026Row?.scoIndemnity ?? 0,
+    eco: state.assumed2026Row?.ecoIndemnity ?? 0,
+    premium: -(state.assumed2026Row?.totalPremium ?? 0),
+    netPerAcre: state.assumed2026Row?.netPerAcre ?? 0,
+    cumulativeNet: 0,
+    countyYield: state.assumedYield2026,
+    countyAPH: state.assumed2026Row?.countyAPH ?? countyAPH,
+    projPrice: state.assumed2026Row?.projPrice ?? (inputs.crop === 'corn' ? 4.61 : 11.07),
+    harvPrice: state.assumed2026Row?.projPrice ?? (inputs.crop === 'corn' ? 4.61 : 11.07),
+    expectedRevenue: state.assumed2026Row?.expectedRevenue ?? 0,
+    actualRevenue: state.assumed2026Row?.actualRevenue ?? 0,
+    revenueShortfall: state.assumed2026Row?.revenueShortfall ?? 0,
+    revenueRatio: (state.assumed2026Row?.countyRevenueRatio ?? 1) * 100,
+    isProjection: true,
+    hail: undefined,
+  };
+  const fullChartData = [...chartData, projected2026];
 
   // Cause-of-loss summary counts
   const yieldOnlyYears = backtestYears.filter(y =>
@@ -167,11 +189,46 @@ export default function HistoricalBacktest({ state }: Props) {
         </div>
       )}
 
+      {/* 2026 Yield Assumption Box */}
+      <div className="bg-slate-900/80 border border-dashed border-slate-500 rounded-xl p-4 space-y-2">
+        <div className="text-sm font-semibold text-slate-200">📐 2026 Yield Assumption <span className="text-xs font-normal text-slate-400">(current crop year)</span></div>
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <span className="text-slate-400">Expected trend: <span className="text-slate-200">{countyAPH} bu/ac</span></span>
+          <span className="text-slate-400">Your assumption:
+            <input
+              type="number"
+              value={state.assumedYield2026}
+              onChange={e => state.setAssumedYield2026(Number(e.target.value))}
+              className="ml-2 w-24 bg-slate-700 text-white rounded px-2 py-1 text-center border border-slate-500"
+            />
+            <span className="ml-1 text-slate-400">bu/ac</span>
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-4 text-xs text-slate-400">
+          <span>Proj. price: <span className="text-slate-200">${(inputs.crop === 'corn' ? 4.61 : 11.07).toFixed(2)}/bu</span></span>
+          <span>Harvest: <span className="text-slate-400 italic">TBD — using projected as proxy</span></span>
+        </div>
+        <div className="flex flex-wrap gap-4 text-xs">
+          {state.assumed2026Row && (
+            <>
+              <span className="text-slate-400">Est. underlying payment: <span className="text-blue-300">${fmt(state.assumed2026Row.underlyingIndemnity)}/ac</span></span>
+              {inputs.scoEnabled && <span className="text-slate-400">Est. SCO: <span className="text-purple-300">${fmt(state.assumed2026Row.scoIndemnity)}/ac</span></span>}
+              {inputs.ecoLevel !== 'None' && <span className="text-slate-400">Est. ECO: <span className="text-teal-300">${fmt(state.assumed2026Row.ecoIndemnity)}/ac</span></span>}
+              <span className="text-slate-400">Est. premium: <span className="text-red-300">${fmt(state.assumed2026Row.totalPremium)}/ac</span></span>
+              <span className="text-slate-400">Est. net: <span className={state.assumed2026Row.netPerAcre >= 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
+                {state.assumed2026Row.netPerAcre >= 0 ? '+' : ''}{fmt(state.assumed2026Row.netPerAcre)}/ac
+              </span></span>
+            </>
+          )}
+        </div>
+        <div className="text-xs text-slate-500 italic">* Projection only. Harvest price unknown — using spring price as proxy.</div>
+      </div>
+
       {/* Bar chart */}
       <div>
-        <div className="text-sm text-slate-400 mb-2">Indemnity by Year (stacked) vs. Premium Cost</div>
+        <div className="text-sm text-slate-400 mb-2">Indemnity by Year (stacked) vs. Premium Cost <span className="text-slate-600 text-xs">· 2026 bar = projected (assumed yield)</span></div>
         <ResponsiveContainer width="100%" height={280}>
-          <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+          <ComposedChart data={fullChartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
             <XAxis dataKey="year" tick={{ fill: '#9CA3AF', fontSize: 11 }} />
             <YAxis tick={{ fill: '#9CA3AF', fontSize: 11 }} tickFormatter={v => `$${v}`} />
@@ -200,7 +257,7 @@ export default function HistoricalBacktest({ state }: Props) {
       <div>
         <div className="text-sm text-slate-400 mb-2">County Yield vs Expected (Trend) Yield</div>
         <ResponsiveContainer width="100%" height={200}>
-          <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+          <ComposedChart data={fullChartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
             <XAxis dataKey="year" tick={{ fill: '#9CA3AF', fontSize: 11 }} />
             <YAxis
@@ -238,7 +295,7 @@ export default function HistoricalBacktest({ state }: Props) {
       <div>
         <div className="text-sm text-slate-400 mb-2">Expected vs Actual Revenue ($/ac)</div>
         <ResponsiveContainer width="100%" height={180}>
-          <ComposedChart data={chartData} margin={{ top: 5, right: 40, left: 10, bottom: 5 }}>
+          <ComposedChart data={fullChartData} margin={{ top: 5, right: 40, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
             <XAxis dataKey="year" tick={{ fill: '#9CA3AF', fontSize: 11 }} />
             <YAxis yAxisId="left" tick={{ fill: '#9CA3AF', fontSize: 11 }} tickFormatter={v => `$${v}`} />
@@ -378,6 +435,51 @@ export default function HistoricalBacktest({ state }: Props) {
                   </tr>
                 );
               })}
+              {/* 2026 projected row */}
+              {state.assumed2026Row && (() => {
+                const r = state.assumed2026Row;
+                const ratio = parseFloat((r.countyRevenueRatio * 100).toFixed(1));
+                return (
+                  <tr className="border-b border-slate-700/50 border-dashed">
+                    <td className="py-1 px-2 text-slate-500 italic">
+                      2026 *
+                      <span className="ml-1 inline-block bg-slate-700 text-slate-400 text-[9px] rounded px-1">projected</span>
+                    </td>
+                    <td className="py-1 px-2 text-right text-slate-500 italic">✏️ {state.assumedYield2026} bu</td>
+                    <td className="py-1 px-2 text-right text-slate-500 italic">{fmt(r.countyAPH, 0)} bu</td>
+                    <td className="py-1 px-2 text-right text-slate-500 italic">{ratio}%</td>
+                    <td className="py-1 px-2 text-right text-slate-500 italic">${r.projPrice.toFixed(2)}</td>
+                    <td className="py-1 px-2 text-right text-slate-500 italic">TBD</td>
+                    <td className="py-1 px-2 text-right text-slate-500 italic">Assumption</td>
+                    <td className="py-1 px-2 text-right text-slate-500 italic">
+                      {r.revenueShortfall > 0 ? `-$${Math.round(r.revenueShortfall)}` : '$0'}
+                    </td>
+                    <td className="py-1 px-2 text-right text-slate-500 italic">
+                      {r.underlyingIndemnity > 0 ? `$${fmt(r.underlyingIndemnity)}` : '—'}
+                    </td>
+                    {inputs.scoEnabled && (
+                      <td className="py-1 px-2 text-right text-slate-500 italic">
+                        {r.scoIndemnity > 0 ? `$${fmt(r.scoIndemnity)}` : '—'}
+                      </td>
+                    )}
+                    {inputs.ecoLevel !== 'None' && (
+                      <td className="py-1 px-2 text-right text-slate-500 italic">
+                        {r.ecoIndemnity > 0 ? `$${fmt(r.ecoIndemnity)}` : '—'}
+                      </td>
+                    )}
+                    <td className="py-1 px-2 text-right text-slate-500 italic">
+                      {r.totalIndemnity > 0 ? `$${fmt(r.totalIndemnity)}` : '—'}
+                    </td>
+                    <td className="py-1 px-2 text-right text-slate-500 italic">${fmt(r.totalPremium)}</td>
+                    <td className="py-1 px-2 text-right font-bold">
+                      <span className={`italic ${r.netPerAcre >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {r.netPerAcre >= 0 ? '+' : ''}{fmt(r.netPerAcre)}
+                      </span>
+                    </td>
+                    <td className="py-1 px-2 text-center text-slate-600">—</td>
+                  </tr>
+                );
+              })()}
             </tbody>
           </table>
         </div>
