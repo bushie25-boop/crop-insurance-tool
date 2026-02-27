@@ -141,26 +141,63 @@ export interface HailEvent {
   date: string;
   magnitude: number; // inches
   description: string;
+  lat: number;
+  lng: number;
 }
 
 export const HAIL_EVENTS_SAMPLE: HailEvent[] = [
-  { year: 2011, county: 'Trempealeau WI', date: '2011-06-18', magnitude: 1.0, description: 'Hail to 1" across NE Trempealeau County' },
-  { year: 2012, county: 'Trempealeau WI', date: '2012-07-01', magnitude: 0.75, description: 'Scattered hail with severe storms' },
-  { year: 2014, county: 'Trempealeau WI', date: '2014-07-12', magnitude: 1.25, description: 'Hail to 1.25" with storm damage' },
-  { year: 2016, county: 'Trempealeau WI', date: '2016-06-22', magnitude: 1.0, description: 'Hail and wind damage' },
-  { year: 2018, county: 'Trempealeau WI', date: '2018-06-29', magnitude: 0.75, description: 'Hail with severe thunderstorm' },
-  { year: 2019, county: 'Trempealeau WI', date: '2019-07-10', magnitude: 1.5, description: 'Large hail to 1.5" in south county' },
-  { year: 2021, county: 'Trempealeau WI', date: '2021-07-05', magnitude: 0.88, description: 'Penny-sized hail with storms' },
-  { year: 2023, county: 'Trempealeau WI', date: '2023-08-02', magnitude: 1.0, description: 'Hail to 1" with late season storms' },
-  // Buffalo
-  { year: 2012, county: 'Buffalo WI', date: '2012-07-02', magnitude: 1.0, description: 'Hail event, Buffalo County' },
-  { year: 2019, county: 'Buffalo WI', date: '2019-07-11', magnitude: 1.25, description: 'Hail 1.25" Buffalo County' },
-  // Jackson
-  { year: 2015, county: 'Jackson WI', date: '2015-06-30', magnitude: 0.75, description: 'Hail with severe storms Jackson County' },
-  { year: 2020, county: 'Jackson WI', date: '2020-07-15', magnitude: 1.0, description: 'Hail 1.0" Jackson County' },
+  // Trempealeau WI
+  { year: 2003, county: 'Trempealeau WI', date: '2003-07-14', magnitude: 0.75, description: 'Scattered hail with afternoon storms', lat: 44.18, lng: -91.35 },
+  { year: 2005, county: 'Trempealeau WI', date: '2005-06-20', magnitude: 1.0, description: 'Hail to 1" with severe thunderstorm line', lat: 44.25, lng: -91.50 },
+  { year: 2007, county: 'Trempealeau WI', date: '2007-08-10', magnitude: 0.88, description: 'Penny-sized hail, NW Trempealeau County', lat: 44.32, lng: -91.42 },
+  { year: 2008, county: 'Trempealeau WI', date: '2008-06-05', magnitude: 1.25, description: 'Hail to 1.25" ahead of cold front', lat: 44.22, lng: -91.28 },
+  { year: 2011, county: 'Trempealeau WI', date: '2011-06-18', magnitude: 1.0, description: 'Hail to 1" across NE Trempealeau County', lat: 44.30, lng: -91.20 },
+  { year: 2012, county: 'Trempealeau WI', date: '2012-07-01', magnitude: 0.75, description: 'Scattered hail with severe storms', lat: 44.15, lng: -91.40 },
+  { year: 2013, county: 'Trempealeau WI', date: '2013-06-25', magnitude: 1.5, description: 'Large hail to 1.5" with supercell', lat: 44.27, lng: -91.55 },
+  { year: 2014, county: 'Trempealeau WI', date: '2014-07-12', magnitude: 1.25, description: 'Hail to 1.25" with storm damage', lat: 44.20, lng: -91.38 },
+  { year: 2015, county: 'Trempealeau WI', date: '2015-07-03', magnitude: 0.75, description: 'Quarter-sized hail, south county', lat: 44.10, lng: -91.45 },
+  { year: 2016, county: 'Trempealeau WI', date: '2016-06-22', magnitude: 1.0, description: 'Hail and wind damage', lat: 44.23, lng: -91.32 },
+  { year: 2017, county: 'Trempealeau WI', date: '2017-07-19', magnitude: 0.75, description: 'Hail with evening storms', lat: 44.35, lng: -91.48 },
+  { year: 2018, county: 'Trempealeau WI', date: '2018-06-29', magnitude: 0.75, description: 'Hail with severe thunderstorm', lat: 44.18, lng: -91.22 },
+  { year: 2019, county: 'Trempealeau WI', date: '2019-07-10', magnitude: 1.5, description: 'Large hail to 1.5" in south county', lat: 44.12, lng: -91.44 },
+  { year: 2020, county: 'Trempealeau WI', date: '2020-08-10', magnitude: 1.0, description: 'Derecho-associated hail', lat: 44.28, lng: -91.36 },
+  { year: 2021, county: 'Trempealeau WI', date: '2021-07-05', magnitude: 0.88, description: 'Penny-sized hail with storms', lat: 44.21, lng: -91.52 },
+  { year: 2022, county: 'Trempealeau WI', date: '2022-06-15', magnitude: 1.0, description: 'Hail to 1", crop damage reported', lat: 44.16, lng: -91.30 },
+  { year: 2023, county: 'Trempealeau WI', date: '2023-08-02', magnitude: 1.0, description: 'Hail to 1" with late season storms', lat: 44.24, lng: -91.42 },
+  { year: 2024, county: 'Trempealeau WI', date: '2024-07-08', magnitude: 1.25, description: 'Hail to 1.25" with supercell, corn damage', lat: 44.19, lng: -91.37 },
+
+  // Buffalo WI
+  { year: 2004, county: 'Buffalo WI', date: '2004-06-28', magnitude: 0.75, description: 'Hail with afternoon convection', lat: 44.40, lng: -91.82 },
+  { year: 2008, county: 'Buffalo WI', date: '2008-07-14', magnitude: 1.0, description: 'Hail to 1", Buffalo County', lat: 44.52, lng: -91.90 },
+  { year: 2011, county: 'Buffalo WI', date: '2011-06-19', magnitude: 0.88, description: 'Penny-sized hail, east Buffalo County', lat: 44.38, lng: -91.72 },
+  { year: 2012, county: 'Buffalo WI', date: '2012-07-02', magnitude: 1.0, description: 'Hail event, Buffalo County', lat: 44.45, lng: -91.85 },
+  { year: 2015, county: 'Buffalo WI', date: '2015-06-30', magnitude: 0.75, description: 'Hail with severe storms Buffalo', lat: 44.42, lng: -91.78 },
+  { year: 2019, county: 'Buffalo WI', date: '2019-07-11', magnitude: 1.25, description: 'Hail 1.25" Buffalo County', lat: 44.48, lng: -91.88 },
+  { year: 2021, county: 'Buffalo WI', date: '2021-07-06', magnitude: 1.0, description: 'Hail 1.0" with storm system', lat: 44.43, lng: -91.80 },
+  { year: 2023, county: 'Buffalo WI', date: '2023-07-22', magnitude: 0.75, description: 'Quarter hail, NW Buffalo County', lat: 44.55, lng: -91.92 },
+  { year: 2024, county: 'Buffalo WI', date: '2024-06-18', magnitude: 1.0, description: 'Hail to 1.0", storm track through Buffalo', lat: 44.44, lng: -91.84 },
+
+  // Jackson WI
+  { year: 2005, county: 'Jackson WI', date: '2005-07-08', magnitude: 0.75, description: 'Hail with summer storms Jackson County', lat: 44.28, lng: -90.72 },
+  { year: 2010, county: 'Jackson WI', date: '2010-06-14', magnitude: 1.0, description: 'Hail to 1" Jackson County', lat: 44.35, lng: -90.65 },
+  { year: 2012, county: 'Jackson WI', date: '2012-07-03', magnitude: 0.75, description: 'Drought year storms, hail Jackson', lat: 44.22, lng: -90.80 },
+  { year: 2015, county: 'Jackson WI', date: '2015-06-30', magnitude: 0.75, description: 'Hail with severe storms Jackson County', lat: 44.30, lng: -90.68 },
+  { year: 2018, county: 'Jackson WI', date: '2018-07-05', magnitude: 1.0, description: 'Hail 1.0" Jackson County', lat: 44.25, lng: -90.75 },
+  { year: 2020, county: 'Jackson WI', date: '2020-07-15', magnitude: 1.0, description: 'Hail 1.0" Jackson County', lat: 44.32, lng: -90.70 },
+  { year: 2022, county: 'Jackson WI', date: '2022-08-01', magnitude: 1.25, description: 'Hail 1.25" with supercell Jackson', lat: 44.27, lng: -90.62 },
+  { year: 2024, county: 'Jackson WI', date: '2024-07-20', magnitude: 0.75, description: 'Scattered hail, afternoon storms', lat: 44.29, lng: -90.73 },
+
   // Houston MN
-  { year: 2013, county: 'Houston MN', date: '2013-07-08', magnitude: 0.88, description: 'Hail Houston County MN' },
-  { year: 2017, county: 'Houston MN', date: '2017-08-01', magnitude: 1.0, description: 'Hail 1.0" Houston County MN' },
+  { year: 2002, county: 'Houston MN', date: '2002-07-02', magnitude: 0.75, description: 'Hail with storms, SE Minnesota', lat: 43.72, lng: -91.52 },
+  { year: 2006, county: 'Houston MN', date: '2006-06-25', magnitude: 1.0, description: 'Hail 1.0" Houston County MN', lat: 43.80, lng: -91.42 },
+  { year: 2010, county: 'Houston MN', date: '2010-07-10', magnitude: 0.88, description: 'Penny hail Houston County', lat: 43.65, lng: -91.60 },
+  { year: 2013, county: 'Houston MN', date: '2013-07-08', magnitude: 0.88, description: 'Hail Houston County MN', lat: 43.75, lng: -91.48 },
+  { year: 2016, county: 'Houston MN', date: '2016-07-14', magnitude: 1.0, description: 'Hail 1.0" with severe storm', lat: 43.68, lng: -91.55 },
+  { year: 2017, county: 'Houston MN', date: '2017-08-01', magnitude: 1.0, description: 'Hail 1.0" Houston County MN', lat: 43.78, lng: -91.44 },
+  { year: 2019, county: 'Houston MN', date: '2019-08-05', magnitude: 1.25, description: 'Hail 1.25" with supercell SE MN', lat: 43.82, lng: -91.38 },
+  { year: 2021, county: 'Houston MN', date: '2021-06-28', magnitude: 0.75, description: 'Hail Houston County', lat: 43.70, lng: -91.58 },
+  { year: 2023, county: 'Houston MN', date: '2023-07-15', magnitude: 1.0, description: 'Hail 1.0" tracking NE through Houston', lat: 43.74, lng: -91.50 },
+  { year: 2024, county: 'Houston MN', date: '2024-06-30', magnitude: 1.5, description: 'Large hail 1.5" with significant supercell', lat: 43.77, lng: -91.45 },
 ];
 
 export function getHailEvents(county: string): HailEvent[] {

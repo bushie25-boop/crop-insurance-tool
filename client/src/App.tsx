@@ -13,8 +13,9 @@ import PlanComparison from './components/PlanComparison';
 import PriceDiscovery from './components/PriceDiscovery';
 import QuoteBuilder from './components/QuoteBuilder';
 import DataSourcesPanel from './components/DataSourcesPanel';
+import HailMap from './components/HailMap';
 
-type Tab = 'overview' | 'scenarios' | 'backtest' | 'prices' | 'quote';
+type Tab = 'overview' | 'scenarios' | 'backtest' | 'prices' | 'quote' | 'hail';
 
 const TABS: Array<{ id: Tab; label: string; icon: string }> = [
   { id: 'overview',   label: 'Overview',         icon: '🏠' },
@@ -22,6 +23,7 @@ const TABS: Array<{ id: Tab; label: string; icon: string }> = [
   { id: 'backtest',   label: 'Backtest',          icon: '📊' },
   { id: 'prices',     label: 'Price Discovery',   icon: '💹' },
   { id: 'quote',      label: 'Quote Builder',     icon: '📋' },
+  { id: 'hail',       label: 'Hail Map',          icon: '🌩️' },
 ];
 
 export default function App() {
@@ -121,6 +123,10 @@ export default function App() {
 
         {activeTab === 'quote' && (
           <QuoteBuilder state={state} />
+        )}
+
+        {activeTab === 'hail' && (
+          <HailMap selectedCounty={state.inputs.county} />
         )}
       </div>
 
