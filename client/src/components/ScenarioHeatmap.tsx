@@ -18,8 +18,8 @@ export default function ScenarioHeatmap({ state }: Props) {
   const maxIndemnity = Math.max(...heatmap.map(c => c.totalIndemnity), 1);
 
   // Get unique prices and yields for axes
-  const prices = [...new Set(heatmap.map(c => c.price))].sort((a, b) => a - b);
-  const yieldPcts = [...new Set(heatmap.map(c => c.yieldPct))].sort((a, b) => b - a); // high to low
+  const prices = Array.from(new Set(heatmap.map(c => c.price))).sort((a, b) => a - b);
+  const yieldPcts = Array.from(new Set(heatmap.map(c => c.yieldPct))).sort((a, b) => b - a); // high to low
 
   function getCell(price: number, yieldPct: number) {
     return heatmap.find(c => c.price === price && c.yieldPct === yieldPct);
