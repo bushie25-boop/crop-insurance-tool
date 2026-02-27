@@ -37,11 +37,13 @@ const DEFAULT_INPUTS: InsuranceInputs = {
 };
 
 export type BacktestWindow = 5 | 10 | 15 | 20 | 25 | 'all';
+export type YieldStability = 'more_stable' | 'average' | 'less_stable';
 
 export function useInsurance() {
   const [inputs, setInputs] = useState<InsuranceInputs>(DEFAULT_INPUTS);
   const [backtestWindow, setBacktestWindow] = useState<BacktestWindow>(15);
   const [assumedYield2026, setAssumedYield2026] = useState<number>(173);
+  const [yieldStability, setYieldStability] = useState<YieldStability>('average');
 
   function updateInput<K extends keyof InsuranceInputs>(key: K, value: InsuranceInputs[K]) {
     setInputs(prev => {
@@ -169,6 +171,9 @@ export function useInsurance() {
     assumedYield2026,
     setAssumedYield2026,
     assumed2026Row,
+    // Optimizer
+    yieldStability,
+    setYieldStability,
   };
 }
 

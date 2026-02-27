@@ -601,6 +601,94 @@ export function buildComparisonTable(
   return rows;
 }
 
+// ─── Optimizer ────────────────────────────────────────────────────────────────
+
+export interface OptimizerCombo {
+  planType: PlanType;
+  coverageLevel: number;
+  unitStructure: UnitStructure;
+  scoEnabled: boolean;
+  ecoLevel: ECOLevel;
+  avgNetPerAcre: number;
+  avgFarmerPremium: number;
+  avgIndemnity: number;
+  triggerRate: number;
+  worstYearNet: number;
+  bestYearNet: number;
+  stabilityAdjustedNet: number;
+  totalGrossPerAcre: number;
+  hailExposurePct: number;
+  rank: number;
+  label: string;
+}
+
+export function runOptimizer(
+  inputs: InsuranceInputs,
+  countyYields: number[],
+  countyAPHs: number[],
+  projPrices: number[],
+  harvPrices: number[],
+  stabilityFactor: number = 1.0
+): OptimizerCombo[] {
+  const plans: PlanType[] = ['RP', 'RP-HPE', 'YP'];
+  const coverageLevels = [0.65, 0.70, 0.75, 0.80, 0.85];
+  const units: UnitStructure[] = ['Enterprise', 'Basic', 'Optional'];
+  const scoOptions = [false, true];
+  const ecoOptions: ECOLevel[] = ['None', 'ECO-90', 'ECO-95'];
+
+  const combos: OptimizerCombo[] = [];
+
+  for (const planType of plans) {
+    for (const coverageLevel of coverageLevels) {
+      for (const unitStructure of units) {
+        for (const scoEnabled of scoOptions) {
+          if (scoEnabled && coverageLevel >= 0.86) continue;
+          for (const ecoLevel of ecoOptions) {
+            const sim: InsuranceInputs = { ...inputs, planType, coverageLevel, unitStructure, scoEnabled, ecoLevel };
+            const years = runBacktest(sim, countyYields, countyAPHs, projPrices, harvPrices);
+            const summary = summarizeBacktest(years);
+
+            const adjustedAvgIndemnity = years.reduce((sum, yr) => {
+              const adjUnderlying = yr.underlyingIndemnity * stabilityFactor;
+              return sum + adjUnderlying + yr.scoIndemnity + yr.ecoIndemnity;
+            }, 0) / years.length;
+
+            const avgFarmerPremium = summary.avgFarmerPremium;
+            const stabilityAdjustedNet = adjustedAvgIndemnity - avgFarmerPremium;
+            const worstYearNet = Math.min(...years.map(y => y.netPerAcre));
+            const bestYearNet = Math.max(...years.map(y => y.netPerAcre));
+
+            const label = `${planType} ${Math.round(coverageLevel * 100)}% ${unitStructure === 'Enterprise' ? 'EU' : unitStructure === 'Basic' ? 'BU' : 'OU'}${scoEnabled ? ' + SCO' : ''}${ecoLevel !== 'None' ? ` + ${ecoLevel}` : ''}`;
+
+            combos.push({
+              planType,
+              coverageLevel,
+              unitStructure,
+              scoEnabled,
+              ecoLevel,
+              avgNetPerAcre: summary.avgNetPerAcre,
+              avgFarmerPremium,
+              avgIndemnity: summary.avgTotalIndemnity,
+              triggerRate: summary.triggerRate,
+              worstYearNet,
+              bestYearNet,
+              stabilityAdjustedNet,
+              totalGrossPerAcre: summary.avgFarmerPremium,
+              hailExposurePct: 1 - coverageLevel,
+              rank: 0,
+              label,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  combos.sort((a, b) => b.stabilityAdjustedNet - a.stabilityAdjustedNet);
+  combos.forEach((c, i) => c.rank = i + 1);
+  return combos;
+}
+
 // ─── Coverage stack label ─────────────────────────────────────────────────────
 
 export function getCoverageStackLabel(inputs: InsuranceInputs): string {

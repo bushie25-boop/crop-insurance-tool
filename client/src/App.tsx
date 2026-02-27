@@ -14,8 +14,9 @@ import PriceDiscovery from './components/PriceDiscovery';
 import QuoteBuilder from './components/QuoteBuilder';
 import DataSourcesPanel from './components/DataSourcesPanel';
 import HailMap from './components/HailMap';
+import OptimizerTab from './components/OptimizerTab';
 
-type Tab = 'overview' | 'scenarios' | 'backtest' | 'prices' | 'quote' | 'hail';
+type Tab = 'overview' | 'scenarios' | 'backtest' | 'prices' | 'quote' | 'hail' | 'optimizer';
 
 const TABS: Array<{ id: Tab; label: string; icon: string }> = [
   { id: 'overview',   label: 'Overview',         icon: '🏠' },
@@ -24,6 +25,7 @@ const TABS: Array<{ id: Tab; label: string; icon: string }> = [
   { id: 'prices',     label: 'Price Discovery',   icon: '💹' },
   { id: 'quote',      label: 'Quote Builder',     icon: '📋' },
   { id: 'hail',       label: 'Hail Map',          icon: '🌩️' },
+  { id: 'optimizer',  label: 'Optimizer',         icon: '🎯' },
 ];
 
 export default function App() {
@@ -127,6 +129,10 @@ export default function App() {
 
         {activeTab === 'hail' && (
           <HailMap selectedCounty={state.inputs.county} />
+        )}
+
+        {activeTab === 'optimizer' && (
+          <OptimizerTab state={state} dataSources={dataSources} />
         )}
       </div>
 
