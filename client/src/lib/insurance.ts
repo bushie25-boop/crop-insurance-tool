@@ -410,6 +410,17 @@ export interface BacktestYear {
   scoTriggered: boolean;
   ecoTriggered: boolean;
   hailEvent?: { magnitude: number; description: string };
+  // Revenue breakdown
+  expectedRevenue: number;      // countyAPH × projPrice
+  actualRevenue: number;        // countyYield × harvPrice
+  revenueShortfall: number;     // expectedRevenue - actualRevenue (can be negative = surplus)
+  // Cause of loss decomposition
+  yieldLossBu: number;          // countyAPH - countyYield (bu/ac shortfall, can be negative)
+  yieldLossPct: number;         // yieldLossBu / countyAPH (fraction, can be negative)
+  priceChangePct: number;       // (harvPrice - projPrice) / projPrice (fraction, can be negative)
+  priceRpUpsideTriggered: boolean; // harvPrice > projPrice (RP guarantee moved up)
+  // Cause label
+  causeTags: string[];          // e.g. ['Yield ↓', 'Price ↓'] or ['Price ↑ (RP)'] or ['—']
 }
 
 export function runBacktest(
@@ -449,6 +460,22 @@ export function runBacktest(
     const totalIndemnity = underlyingIndemnity + scoIndemnity + ecoIndemnity;
     const totalPremium = farmerPremium + scoPremium + ecoPremium;
 
+    // Cause-of-loss breakdown
+    const expectedRevenue = countyAPH * projPrice;
+    const actualRevenue = countyYield * harvPrice;
+    const revenueShortfall = expectedRevenue - actualRevenue;
+    const yieldLossBu = countyAPH - countyYield;
+    const yieldLossPct = countyAPH > 0 ? yieldLossBu / countyAPH : 0;
+    const priceChangePct = projPrice > 0 ? (harvPrice - projPrice) / projPrice : 0;
+    const priceRpUpsideTriggered = harvPrice > projPrice;
+
+    const causeTags: string[] = [];
+    if (yieldLossPct > 0.05) causeTags.push('Yield ↓');
+    if (priceChangePct < -0.03) causeTags.push('Price ↓');
+    if (priceRpUpsideTriggered && underlyingIndemnity > 0) causeTags.push('Price ↑ (RP)');
+    if (causeTags.length === 0 && underlyingIndemnity > 0) causeTags.push('Marginal');
+    if (causeTags.length === 0) causeTags.push('—');
+
     return {
       year,
       countyYield,
@@ -468,6 +495,14 @@ export function runBacktest(
       underlyingTriggered: underlyingIndemnity > 0,
       scoTriggered: scoIndemnity > 0,
       ecoTriggered: ecoIndemnity > 0,
+      expectedRevenue,
+      actualRevenue,
+      revenueShortfall,
+      yieldLossBu,
+      yieldLossPct,
+      priceChangePct,
+      priceRpUpsideTriggered,
+      causeTags,
     };
   });
 }

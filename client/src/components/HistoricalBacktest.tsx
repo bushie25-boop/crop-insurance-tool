@@ -57,8 +57,22 @@ export default function HistoricalBacktest({ state }: Props) {
       projPrice: yr.projPrice,
       harvPrice: yr.harvPrice,
       hail: hailEvt ? hailEvt.magnitude : undefined,
+      expectedRevenue: parseFloat(yr.expectedRevenue.toFixed(2)),
+      actualRevenue: parseFloat(yr.actualRevenue.toFixed(2)),
+      revenueShortfall: parseFloat(yr.revenueShortfall.toFixed(2)),
     };
   });
+
+  // Cause-of-loss summary counts
+  const yieldOnlyYears = backtestYears.filter(y =>
+    y.causeTags.includes('Yield ↓') && !y.causeTags.includes('Price ↓') && !y.causeTags.includes('Price ↑ (RP)')
+  ).length;
+  const priceOnlyYears = backtestYears.filter(y =>
+    y.causeTags.includes('Price ↓') && !y.causeTags.includes('Yield ↓')
+  ).length;
+  const bothYears = backtestYears.filter(y =>
+    y.causeTags.includes('Yield ↓') && y.causeTags.includes('Price ↓')
+  ).length;
 
   // Worst year by revenue ratio
   const worstYear = backtestYears.reduce((prev, cur) =>
@@ -220,6 +234,46 @@ export default function HistoricalBacktest({ state }: Props) {
         </ResponsiveContainer>
       </div>
 
+      {/* Expected vs Actual Revenue chart */}
+      <div>
+        <div className="text-sm text-slate-400 mb-2">Expected vs Actual Revenue ($/ac)</div>
+        <ResponsiveContainer width="100%" height={180}>
+          <ComposedChart data={chartData} margin={{ top: 5, right: 40, left: 10, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+            <XAxis dataKey="year" tick={{ fill: '#9CA3AF', fontSize: 11 }} />
+            <YAxis yAxisId="left" tick={{ fill: '#9CA3AF', fontSize: 11 }} tickFormatter={v => `$${v}`} />
+            <YAxis yAxisId="right" orientation="right" tick={{ fill: '#f97316', fontSize: 11 }} tickFormatter={v => `$${v}`} />
+            <Tooltip
+              contentStyle={{ background: '#1e293b', border: '1px solid #475569', borderRadius: '8px' }}
+              labelStyle={{ color: '#fff', fontWeight: 'bold' }}
+              formatter={(v: number, name: string) => [`$${fmt(v, 0)}/ac`, name]}
+            />
+            <Legend />
+            <ReferenceLine yAxisId="right" y={0} stroke="#64748b" />
+            <Bar yAxisId="left" dataKey="expectedRevenue" name="Expected Revenue" fill="#475569" />
+            <Bar yAxisId="left" dataKey="actualRevenue" name="Actual Revenue" fill="#3b82f6" />
+            <Line yAxisId="right" dataKey="revenueShortfall" name="Shortfall" stroke="#f97316"
+              strokeWidth={2} strokeDasharray="3 3" dot={{ fill: '#f97316', r: 3 }} type="monotone" />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Cause-of-loss summary */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-red-900/20 border border-red-700/50 rounded-lg p-3 text-center">
+          <div className="text-2xl font-black text-red-400">{yieldOnlyYears}</div>
+          <div className="text-xs text-slate-400">Yield-driven losses</div>
+        </div>
+        <div className="bg-orange-900/20 border border-orange-700/50 rounded-lg p-3 text-center">
+          <div className="text-2xl font-black text-orange-400">{priceOnlyYears}</div>
+          <div className="text-xs text-slate-400">Price-driven losses</div>
+        </div>
+        <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-3 text-center">
+          <div className="text-2xl font-black text-yellow-400">{bothYears}</div>
+          <div className="text-xs text-slate-400">Both (yield + price)</div>
+        </div>
+      </div>
+
       {/* Year-by-year table */}
       <div>
         <div className="text-sm text-slate-400 mb-2">Year-by-Year Detail</div>
@@ -233,6 +287,8 @@ export default function HistoricalBacktest({ state }: Props) {
                 <th className="text-right py-1 px-2">Rev Ratio</th>
                 <th className="text-right py-1 px-2">Proj $</th>
                 <th className="text-right py-1 px-2">Harv $</th>
+                <th className="text-right py-1 px-2">Cause</th>
+                <th className="text-right py-1 px-2">Rev Shortfall</th>
                 <th className="text-right py-1 px-2">Underlying</th>
                 {inputs.scoEnabled && <th className="text-right py-1 px-2">SCO</th>}
                 {inputs.ecoLevel !== 'None' && <th className="text-right py-1 px-2">ECO</th>}
@@ -248,7 +304,13 @@ export default function HistoricalBacktest({ state }: Props) {
                 return (
                   <tr key={yr.year} className={`border-b border-slate-700/50 ${yr.totalIndemnity > 0 ? 'bg-blue-900/10' : ''}`}>
                     <td className="py-1 px-2 font-semibold text-white">{yr.year}</td>
-                    <td className="py-1 px-2 text-right text-slate-300">{fmt(yr.countyYield, 0)} bu</td>
+                    <td className="py-1 px-2 text-right">
+                      {(() => {
+                        const diff = yr.countyYield - yr.countyAPH;
+                        const cls = diff > 0 ? 'text-green-400' : diff / yr.countyAPH < -0.10 ? 'text-red-400' : 'text-slate-300';
+                        return <span className={cls}>{fmt(yr.countyYield, 0)} bu</span>;
+                      })()}
+                    </td>
                     <td className="py-1 px-2 text-right text-slate-400">{fmt(yr.countyAPH, 0)} bu</td>
                     <td className="py-1 px-2 text-right font-semibold">
                       {(() => {
@@ -259,6 +321,27 @@ export default function HistoricalBacktest({ state }: Props) {
                     </td>
                     <td className="py-1 px-2 text-right text-slate-300">${yr.projPrice.toFixed(2)}</td>
                     <td className="py-1 px-2 text-right text-slate-300">${yr.harvPrice.toFixed(2)}</td>
+                    {/* Cause tags */}
+                    <td className="py-1 px-2 text-right">
+                      {yr.causeTags.map((tag, idx) => {
+                        const badgeCls =
+                          tag === 'Yield ↓' ? 'bg-red-900/50 text-red-300' :
+                          tag === 'Price ↓' ? 'bg-orange-900/50 text-orange-300' :
+                          tag === 'Price ↑ (RP)' ? 'bg-green-900/50 text-green-300' :
+                          'text-slate-500';
+                        return tag === '—'
+                          ? <span key={idx} className="text-slate-500">—</span>
+                          : <span key={idx} className={`inline-block rounded px-1 mr-0.5 text-[10px] font-medium ${badgeCls}`}>{tag}</span>;
+                      })}
+                    </td>
+                    {/* Rev Shortfall */}
+                    <td className="py-1 px-2 text-right font-semibold">
+                      {yr.revenueShortfall > 0
+                        ? <span className="text-red-400">-${Math.round(yr.revenueShortfall)}</span>
+                        : yr.revenueShortfall < 0
+                          ? <span className="text-green-400">+${Math.round(Math.abs(yr.revenueShortfall))}</span>
+                          : <span className="text-slate-500">$0</span>}
+                    </td>
                     <td className="py-1 px-2 text-right">
                       {yr.underlyingIndemnity > 0
                         ? <span className="text-blue-400">${fmt(yr.underlyingIndemnity)}</span>
