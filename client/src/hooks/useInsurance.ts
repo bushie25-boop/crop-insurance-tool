@@ -36,8 +36,11 @@ const DEFAULT_INPUTS: InsuranceInputs = {
   irrigated: false,
 };
 
+export type BacktestWindow = 5 | 10 | 15 | 20 | 25 | 'all';
+
 export function useInsurance() {
   const [inputs, setInputs] = useState<InsuranceInputs>(DEFAULT_INPUTS);
+  const [backtestWindow, setBacktestWindow] = useState<BacktestWindow>(15);
 
   function updateInput<K extends keyof InsuranceInputs>(key: K, value: InsuranceInputs[K]) {
     setInputs(prev => {
@@ -80,8 +83,13 @@ export function useInsurance() {
       return idx >= 0 ? (priceData.harvestPrices[idx] > 0 ? priceData.harvestPrices[idx] : inputs.springPrice) : inputs.springPrice;
     });
 
-    return runBacktest(inputs, yields, trendAPH, projPrices, harvPrices, startYear);
-  }, [inputs, countyYieldData, priceData]);
+    const fullBacktest = runBacktest(inputs, yields, trendAPH, projPrices, harvPrices, startYear);
+    // Apply window filter — take the most recent N years
+    const windowed = backtestWindow === 'all'
+      ? fullBacktest
+      : fullBacktest.slice(-backtestWindow);
+    return windowed;
+  }, [inputs, countyYieldData, priceData, backtestWindow]);
 
   const backtestSummary = useMemo(() => summarizeBacktest(backtestYears), [backtestYears]);
 
@@ -104,8 +112,14 @@ export function useInsurance() {
       const idx = priceData.years.indexOf(yr);
       return idx >= 0 ? (priceData.harvestPrices[idx] > 0 ? priceData.harvestPrices[idx] : inputs.springPrice) : inputs.springPrice;
     });
-    return buildComparisonTable(inputs, yields, trendAPH, projPrices, harvPrices);
-  }, [inputs, countyYieldData, priceData]);
+    // Apply same window filter as backtestYears
+    const n = backtestWindow === 'all' ? yields.length : backtestWindow;
+    const wYields = yields.slice(-n);
+    const wTrend = trendAPH.slice(-n);
+    const wProj = projPrices.slice(-n);
+    const wHarv = harvPrices.slice(-n);
+    return buildComparisonTable(inputs, wYields, wTrend, wProj, wHarv);
+  }, [inputs, countyYieldData, priceData, backtestWindow]);
 
   return {
     inputs,
@@ -128,6 +142,9 @@ export function useInsurance() {
     // Price/yield data
     countyYieldData,
     priceData,
+    // Backtest window
+    backtestWindow,
+    setBacktestWindow,
   };
 }
 

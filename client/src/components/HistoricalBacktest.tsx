@@ -15,8 +15,17 @@ function fmt(n: number, dec = 2): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 }
 
+const WINDOW_OPTIONS: Array<{ label: string; value: import('../hooks/useInsurance').BacktestWindow }> = [
+  { label: '5 yr', value: 5 },
+  { label: '10 yr', value: 10 },
+  { label: '15 yr', value: 15 },
+  { label: '20 yr', value: 20 },
+  { label: '25 yr', value: 25 },
+  { label: 'All (24)', value: 'all' },
+];
+
 export default function HistoricalBacktest({ state }: Props) {
-  const { backtestYears, backtestSummary, inputs } = state;
+  const { backtestYears, backtestSummary, inputs, backtestWindow, setBacktestWindow } = state;
   const hailEvents = getHailEvents(inputs.county);
 
   if (!backtestYears.length) {
@@ -51,13 +60,34 @@ export default function HistoricalBacktest({ state }: Props) {
   const { underlyingTriggers, scoTriggers, ecoTriggers, anyTriggers, years,
     avgFarmerPremium, avgTotalIndemnity, avgNetPerAcre } = backtestSummary;
 
+  // Compute year range for subtitle
+  const firstYear = backtestYears.length > 0 ? backtestYears[0].year : null;
+  const lastYear = backtestYears.length > 0 ? backtestYears[backtestYears.length - 1].year : null;
+  const yearRangeLabel = firstYear && lastYear ? `${firstYear}–${lastYear} (${years} years)` : `${years} years`;
+
   return (
     <div className="bg-slate-800 rounded-xl p-4 space-y-5">
       <div>
         <h3 className="text-white font-bold text-lg mb-1">📊 Historical Backtest ({years} Years)</h3>
+        {/* Year range selector */}
+        <div className="flex flex-wrap gap-1 my-2">
+          {WINDOW_OPTIONS.map(opt => (
+            <button
+              key={String(opt.value)}
+              onClick={() => setBacktestWindow(opt.value)}
+              className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${
+                backtestWindow === opt.value
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
         <p className="text-xs text-slate-400">
           Using {inputs.county} county yields · {inputs.planType} {Math.round(inputs.coverageLevel * 100)}% ·
-          APH: {inputs.aphYield} bu/ac · 📊 Estimated data
+          {yearRangeLabel} · 📊 Estimated
         </p>
       </div>
 

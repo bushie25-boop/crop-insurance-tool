@@ -11,7 +11,8 @@ function fmt(n: number, dec = 2): string {
 }
 
 export default function PlanComparison({ state }: Props) {
-  const { comparisonTable, inputs } = state;
+  const { comparisonTable, inputs, backtestWindow } = state;
+  const windowLabel = backtestWindow === 'all' ? 'All-year' : `${backtestWindow}-year`;
 
   if (!comparisonTable.length) {
     return (
@@ -26,7 +27,7 @@ export default function PlanComparison({ state }: Props) {
     <div className="bg-slate-800 rounded-xl p-4">
       <h3 className="text-white font-bold text-lg mb-1">📊 Plan Comparison — All 11 Combos</h3>
       <p className="text-xs text-slate-400 mb-3">
-        15-year historical trigger rate based on {inputs.county} county yields.
+        {windowLabel} historical trigger rate based on {inputs.county} county yields.
         <span className="text-blue-400 ml-2">Blue = current selection</span>
         <span className="text-green-400 ml-2">Green = best value (trigger rate per premium $)</span>
       </p>
