@@ -1,205 +1,235 @@
-// historicalData.ts — historical yields, prices, and hail events
-import type { County, CropType } from './insurance';
+// historicalData.ts — Hardcoded fallback data
+// ⚠️ ESTIMATED DATA — used when APIs are unavailable
+// Sources: USDA NASS, RMA historical price tables, Scout/Storm research
+// Label all data as estimated in the UI
 
-// ─── Historical Prices ────────────────────────────────────────────────────────
-export const YEARS = [2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023];
+export interface CountyYieldHistory {
+  county: string;
+  crop: 'corn' | 'soybeans';
+  years: number[];
+  yields: number[];      // bu/ac actual county yields
+  trendAPH: number[];    // 30-year trend APH for that year (used as county APH for SCO calc)
+}
 
-export const CORN_PROJ_PRICES  = [3.99,3.68,6.01,5.68,5.65,4.62,4.58,3.70,3.96,3.96,3.72,3.89,5.18,4.58,4.67];
-export const CORN_HARV_PRICES  = [3.64,5.19,6.32,6.74,4.49,4.35,3.70,3.55,3.49,3.55,3.61,5.05,4.53,4.67,4.83];
-export const SOY_PROJ_PRICES   = [8.88,9.24,13.49,12.55,12.87,11.36,10.46,9.73,9.73,9.54,8.70,10.16,14.33,13.76,12.87];
-export const SOY_HARV_PRICES   = [9.21,11.30,12.14,15.39,9.43,10.53,9.73,8.85,9.33,9.54,10.05,13.03,12.47,13.76,11.40];
+export interface PriceHistory {
+  years: number[];
+  projectedPrices: number[];  // spring projected (CME futures avg, Feb)
+  harvestPrices: number[];    // fall harvest price (Oct futures avg)
+}
 
-// ─── Historical County Yields ─────────────────────────────────────────────────
-type CountyYieldMap = Record<County, Record<CropType, number[]>>;
+// ─── County Yield History ─────────────────────────────────────────────────────
+// Source: USDA NASS county estimates + RMA SCO Expected County Yield database
+// ⚠️ ESTIMATED — verify via NASS API
 
-const SOY_FROM_CORN = (corn: number[]): number[] => corn.map(v => Math.round((v / 3.5) * 10) / 10);
-
-const TREMPEALEAU_CORN = [148,162,135,170,108,168,172,158,165,170,175,168,172,155,168];
-const BUFFALO_CORN     = [145,158,132,165,105,163,168,155,162,166,170,165,168,152,164];
-const JACKSON_CORN     = [140,155,128,160,100,158,162,150,158,162,166,160,164,148,160];
-const HOUSTON_CORN     = [155,168,142,175,115,172,178,165,170,175,180,175,178,162,172];
-
-export const COUNTY_YIELDS: CountyYieldMap = {
-  'Trempealeau WI': {
-    corn:     TREMPEALEAU_CORN,
-    soybeans: [38,42,35,44,28,43,44,40,42,45,46,44,45,39,43],
+export const COUNTY_YIELDS: CountyYieldHistory[] = [
+  {
+    county: 'Trempealeau WI',
+    crop: 'corn',
+    years: [2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023],
+    yields: [155,165,148,108,162,168,170,172,165,158,162,174,168,160,175],
+    trendAPH: [148,151,154,157,158,160,162,163,165,166,167,168,169,170,171],
   },
-  'Buffalo WI': {
-    corn:     BUFFALO_CORN,
-    soybeans: SOY_FROM_CORN(BUFFALO_CORN),
+  {
+    county: 'Buffalo WI',
+    crop: 'corn',
+    years: [2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023],
+    yields: [152,162,145,105,158,164,167,170,162,155,158,170,165,157,172],
+    trendAPH: [145,148,151,154,155,157,159,161,163,164,165,166,167,168,169],
   },
-  'Jackson WI': {
-    corn:     JACKSON_CORN,
-    soybeans: SOY_FROM_CORN(JACKSON_CORN),
+  {
+    county: 'Jackson WI',
+    crop: 'corn',
+    years: [2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023],
+    yields: [148,158,142,100,155,160,163,167,160,152,155,166,162,154,168],
+    trendAPH: [141,144,147,150,151,153,155,157,159,160,161,162,163,164,165],
   },
-  'Houston MN': {
-    corn:     HOUSTON_CORN,
-    soybeans: SOY_FROM_CORN(HOUSTON_CORN),
+  {
+    county: 'Houston MN',
+    crop: 'corn',
+    years: [2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023],
+    yields: [158,168,150,110,165,170,172,175,168,160,163,175,170,162,178],
+    trendAPH: [150,153,156,159,160,162,164,165,167,168,169,170,171,172,173],
   },
+  {
+    county: 'Trempealeau WI',
+    crop: 'soybeans',
+    years: [2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023],
+    yields: [44,47,43,33,47,50,51,53,50,47,49,53,51,48,54],
+    trendAPH: [42,43,44,45,45,46,47,48,48,49,49,50,50,51,51],
+  },
+  {
+    county: 'Buffalo WI',
+    crop: 'soybeans',
+    years: [2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023],
+    yields: [43,46,42,32,46,49,50,52,49,46,48,52,50,47,53],
+    trendAPH: [41,42,43,44,44,45,46,47,47,48,48,49,49,50,50],
+  },
+  {
+    county: 'Jackson WI',
+    crop: 'soybeans',
+    years: [2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023],
+    yields: [42,45,41,31,45,48,49,51,48,45,47,51,49,46,52],
+    trendAPH: [40,41,42,43,43,44,45,46,46,47,47,48,48,49,49],
+  },
+  {
+    county: 'Houston MN',
+    crop: 'soybeans',
+    years: [2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023],
+    yields: [46,49,44,34,48,51,52,54,51,48,50,54,52,49,55],
+    trendAPH: [43,44,45,46,46,47,48,49,49,50,50,51,51,52,52],
+  },
+];
+
+export function getCountyYields(county: string, crop: 'corn' | 'soybeans'): CountyYieldHistory | undefined {
+  return COUNTY_YIELDS.find(c => c.county === county && c.crop === crop);
+}
+
+// ─── Price History ────────────────────────────────────────────────────────────
+// Source: RMA historical projected/harvest prices
+// https://www.rma.usda.gov/data/projected-harvest-prices
+// ⚠️ ESTIMATED for older years — verify for recent crop years
+
+export const CORN_PRICES: PriceHistory = {
+  years:           [2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026],
+  projectedPrices: [4.04, 3.99, 6.01, 5.68, 5.65, 4.62, 3.86, 3.86, 3.96, 3.96, 4.00, 3.88, 4.58, 5.90, 4.90, 4.64, 4.70, 4.61],
+  harvestPrices:   [3.99, 5.32, 6.32, 7.50, 4.30, 3.49, 3.83, 3.49, 3.15, 3.60, 3.88, 4.30, 5.37, 6.70, 4.72, 4.10, 4.41, 0],  // 0 = not yet announced
 };
 
-// County APH (long-run average, used as county benchmark for SCO/ECO triggers)
-export const COUNTY_APH: Record<County, Record<CropType, number>> = {
-  'Trempealeau WI': { corn: 160, soybeans: 42 },
-  'Buffalo WI':     { corn: 156, soybeans: 41 },
-  'Jackson WI':     { corn: 152, soybeans: 40 },
-  'Houston MN':     { corn: 168, soybeans: 44 },
+export const SOYBEAN_PRICES: PriceHistory = {
+  years:           [2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026],
+  projectedPrices: [9.04, 8.70, 13.49,12.55,12.87,11.36, 8.85, 8.85, 9.69,10.16, 9.54, 9.17, 13.76,14.33,12.61,11.55,10.54,11.07],
+  harvestPrices:   [9.65,11.30,12.14,15.39,12.87, 9.65, 8.55, 9.72,10.15, 8.60, 9.25, 9.68, 12.26,13.76,12.84,10.20,10.20, 0],
 };
 
-export function getProjPrices(crop: CropType) {
-  return crop === 'corn' ? CORN_PROJ_PRICES : SOY_PROJ_PRICES;
-}
-export function getHarvPrices(crop: CropType) {
-  return crop === 'corn' ? CORN_HARV_PRICES : SOY_HARV_PRICES;
-}
-export function getCountyYields(county: County, crop: CropType): number[] {
-  return COUNTY_YIELDS[county][crop];
+export function getPriceHistory(crop: 'corn' | 'soybeans'): PriceHistory {
+  return crop === 'corn' ? CORN_PRICES : SOYBEAN_PRICES;
 }
 
-// ─── Hail Event Data ──────────────────────────────────────────────────────────
+// How often harvest price < projected price (RP advantage)
+export function calcRPAdvantageRate(crop: 'corn' | 'soybeans'): {
+  rate: number;
+  count: number;
+  total: number;
+  years: number[];
+} {
+  const history = getPriceHistory(crop);
+  const years: number[] = [];
+  let count = 0;
+  let total = 0;
+  for (let i = 0; i < history.years.length; i++) {
+    const hp = history.harvestPrices[i];
+    const pp = history.projectedPrices[i];
+    if (hp > 0 && pp > 0) {
+      total++;
+      if (hp < pp) {
+        count++;
+        years.push(history.years[i]);
+      }
+    }
+  }
+  return { rate: total > 0 ? count / total : 0, count, total, years };
+}
+
+// ─── Hail Events (visualization only) ────────────────────────────────────────
+// Source: NOAA Storm Events Database
+// ⚠️ ESTIMATED/SAMPLE — pull from NOAA API for actual events
+// Note: NO hail insurance rates — visualization only
+
 export interface HailEvent {
   year: number;
-  month: number; // 1-12
-  day: number;
-  sizeInches: number;
-  county: County;
-  significant: boolean; // >= 1.0"
-  notes?: string;
+  county: string;
+  date: string;
+  magnitude: number; // inches
+  description: string;
 }
 
-const HAIL_TREMPEALEAU: HailEvent[] = [
-  { year:2008, month:6,  day:12, sizeInches:0.75, county:'Trempealeau WI', significant:false },
-  { year:2008, month:7,  day:8,  sizeInches:1.00, county:'Trempealeau WI', significant:true },
-  { year:2009, month:6,  day:22, sizeInches:0.75, county:'Trempealeau WI', significant:false },
-  { year:2010, month:6,  day:15, sizeInches:1.25, county:'Trempealeau WI', significant:true },
-  { year:2010, month:8,  day:3,  sizeInches:0.75, county:'Trempealeau WI', significant:false },
-  { year:2011, month:5,  day:28, sizeInches:0.75, county:'Trempealeau WI', significant:false },
-  { year:2011, month:7,  day:10, sizeInches:1.50, county:'Trempealeau WI', significant:true, notes:'Major event, widespread damage' },
-  { year:2012, month:6,  day:18, sizeInches:0.75, county:'Trempealeau WI', significant:false, notes:'Drought year' },
-  { year:2013, month:6,  day:7,  sizeInches:1.00, county:'Trempealeau WI', significant:true },
-  { year:2013, month:7,  day:24, sizeInches:0.88, county:'Trempealeau WI', significant:false },
-  { year:2014, month:6,  day:14, sizeInches:1.75, county:'Trempealeau WI', significant:true, notes:'Significant crop damage' },
-  { year:2014, month:7,  day:5,  sizeInches:0.75, county:'Trempealeau WI', significant:false },
-  { year:2015, month:5,  day:20, sizeInches:0.88, county:'Trempealeau WI', significant:false },
-  { year:2015, month:6,  day:11, sizeInches:1.00, county:'Trempealeau WI', significant:true },
-  { year:2015, month:7,  day:19, sizeInches:1.25, county:'Trempealeau WI', significant:true, notes:'Multi-event year' },
-  { year:2016, month:6,  day:29, sizeInches:0.75, county:'Trempealeau WI', significant:false },
-  { year:2016, month:8,  day:12, sizeInches:0.88, county:'Trempealeau WI', significant:false },
-  { year:2017, month:6,  day:16, sizeInches:1.00, county:'Trempealeau WI', significant:true },
-  { year:2017, month:7,  day:3,  sizeInches:0.75, county:'Trempealeau WI', significant:false },
-  { year:2018, month:5,  day:24, sizeInches:1.50, county:'Trempealeau WI', significant:true, notes:'Early-season significant event' },
-  { year:2018, month:6,  day:30, sizeInches:0.75, county:'Trempealeau WI', significant:false },
-  { year:2019, month:6,  day:20, sizeInches:1.25, county:'Trempealeau WI', significant:true },
-  { year:2019, month:7,  day:14, sizeInches:1.00, county:'Trempealeau WI', significant:true, notes:'Very wet year, multiple events' },
-  { year:2020, month:6,  day:8,  sizeInches:0.75, county:'Trempealeau WI', significant:false },
-  { year:2020, month:7,  day:27, sizeInches:0.88, county:'Trempealeau WI', significant:false },
-  { year:2021, month:6,  day:18, sizeInches:1.00, county:'Trempealeau WI', significant:true },
-  { year:2021, month:8,  day:4,  sizeInches:1.25, county:'Trempealeau WI', significant:true, notes:'Late-season event' },
-  { year:2022, month:6,  day:10, sizeInches:1.75, county:'Trempealeau WI', significant:true, notes:'Major hail event' },
-  { year:2022, month:7,  day:21, sizeInches:0.75, county:'Trempealeau WI', significant:false },
-  { year:2023, month:5,  day:17, sizeInches:0.88, county:'Trempealeau WI', significant:false },
-  { year:2023, month:6,  day:26, sizeInches:1.00, county:'Trempealeau WI', significant:true },
-  { year:2023, month:7,  day:9,  sizeInches:0.75, county:'Trempealeau WI', significant:false },
+export const HAIL_EVENTS_SAMPLE: HailEvent[] = [
+  { year: 2011, county: 'Trempealeau WI', date: '2011-06-18', magnitude: 1.0, description: 'Hail to 1" across NE Trempealeau County' },
+  { year: 2012, county: 'Trempealeau WI', date: '2012-07-01', magnitude: 0.75, description: 'Scattered hail with severe storms' },
+  { year: 2014, county: 'Trempealeau WI', date: '2014-07-12', magnitude: 1.25, description: 'Hail to 1.25" with storm damage' },
+  { year: 2016, county: 'Trempealeau WI', date: '2016-06-22', magnitude: 1.0, description: 'Hail and wind damage' },
+  { year: 2018, county: 'Trempealeau WI', date: '2018-06-29', magnitude: 0.75, description: 'Hail with severe thunderstorm' },
+  { year: 2019, county: 'Trempealeau WI', date: '2019-07-10', magnitude: 1.5, description: 'Large hail to 1.5" in south county' },
+  { year: 2021, county: 'Trempealeau WI', date: '2021-07-05', magnitude: 0.88, description: 'Penny-sized hail with storms' },
+  { year: 2023, county: 'Trempealeau WI', date: '2023-08-02', magnitude: 1.0, description: 'Hail to 1" with late season storms' },
+  // Buffalo
+  { year: 2012, county: 'Buffalo WI', date: '2012-07-02', magnitude: 1.0, description: 'Hail event, Buffalo County' },
+  { year: 2019, county: 'Buffalo WI', date: '2019-07-11', magnitude: 1.25, description: 'Hail 1.25" Buffalo County' },
+  // Jackson
+  { year: 2015, county: 'Jackson WI', date: '2015-06-30', magnitude: 0.75, description: 'Hail with severe storms Jackson County' },
+  { year: 2020, county: 'Jackson WI', date: '2020-07-15', magnitude: 1.0, description: 'Hail 1.0" Jackson County' },
+  // Houston MN
+  { year: 2013, county: 'Houston MN', date: '2013-07-08', magnitude: 0.88, description: 'Hail Houston County MN' },
+  { year: 2017, county: 'Houston MN', date: '2017-08-01', magnitude: 1.0, description: 'Hail 1.0" Houston County MN' },
 ];
 
-// Helper to shift a base county's hail data to a variant county
-function shiftHail(base: HailEvent[], county: County, daySeed: number): HailEvent[] {
-  return base.map(e => ({
-    ...e,
-    county,
-    day: Math.min(28, Math.max(1, e.day + daySeed)),
-    sizeInches: Math.round((e.sizeInches * (0.88 + Math.sin(e.year * 0.3 + daySeed) * 0.12)) * 100) / 100,
-    significant: e.sizeInches * (0.88 + Math.sin(e.year * 0.3 + daySeed) * 0.12) >= 1.0,
-  }));
+export function getHailEvents(county: string): HailEvent[] {
+  return HAIL_EVENTS_SAMPLE.filter(e => e.county === county);
 }
 
-const HAIL_BUFFALO  = shiftHail(HAIL_TREMPEALEAU, 'Buffalo WI',  3);
-const HAIL_JACKSON  = shiftHail(HAIL_TREMPEALEAU, 'Jackson WI', -2);
-const HAIL_HOUSTON  = shiftHail(HAIL_TREMPEALEAU, 'Houston MN',  5);
+// ─── Key Dates ────────────────────────────────────────────────────────────────
 
-const ALL_HAIL: HailEvent[] = [
-  ...HAIL_TREMPEALEAU,
-  ...HAIL_BUFFALO,
-  ...HAIL_JACKSON,
-  ...HAIL_HOUSTON,
+export const KEY_DATES_2026 = [
+  {
+    id: 'price-discovery-close',
+    label: 'Price Discovery Closes',
+    date: new Date('2026-02-28'),
+    urgency: 'high' as const,
+    description: 'Final date for December/November CME futures to count toward projected price calculation.',
+  },
+  {
+    id: 'projected-price-announced',
+    label: 'Projected Prices Announced',
+    date: new Date('2026-03-05'),
+    urgency: 'normal' as const,
+    description: 'RMA announces final 2026 projected prices for corn and soybeans.',
+  },
+  {
+    id: 'sales-closing',
+    label: 'Sales Closing Date',
+    date: new Date('2026-03-15'),
+    urgency: 'urgent' as const,
+    description: 'HARD DEADLINE — Last day to buy, change, or add coverage for 2026 corn and soybeans. No exceptions.',
+  },
+  {
+    id: 'bfr-deadline',
+    label: 'BFR Application Deadline',
+    date: new Date('2026-03-15'),
+    urgency: 'urgent' as const,
+    description: 'Last day to apply for Beginning Farmer & Rancher premium subsidy benefits.',
+  },
+  {
+    id: 'production-reporting',
+    label: 'Production Reporting Due',
+    date: new Date('2026-04-29'),
+    urgency: 'normal' as const,
+    description: 'Submit 2025 actual yields to update APH database.',
+  },
+  {
+    id: 'acreage-reporting',
+    label: 'Acreage Report Deadline',
+    date: new Date('2026-07-15'),
+    urgency: 'normal' as const,
+    description: 'Report actual 2026 planted acres at FSA/USDA.',
+  },
+  {
+    id: 'premium-billing',
+    label: 'Premium Billing Date',
+    date: new Date('2026-08-15'),
+    urgency: 'normal' as const,
+    description: 'Premium due date. Unpaid premiums trigger cancellation.',
+  },
+  {
+    id: 'harvest-price',
+    label: 'Harvest Price Announced',
+    date: new Date('2026-11-05'),
+    urgency: 'normal' as const,
+    description: 'RMA announces final 2026 harvest price for corn and soybeans.',
+  },
 ];
 
-export function getHailEvents(county: County, yearStart = 2008, yearEnd = 2023): HailEvent[] {
-  return ALL_HAIL.filter(
-    e => e.county === county && e.year >= yearStart && e.year <= yearEnd
-  ).sort((a, b) => a.year - b.year || a.month - b.month || a.day - b.day);
-}
-
-export function getHailByYear(county: County): Map<number, HailEvent[]> {
-  const events = getHailEvents(county);
-  const map = new Map<number, HailEvent[]>();
-  for (const e of events) {
-    if (!map.has(e.year)) map.set(e.year, []);
-    map.get(e.year)!.push(e);
-  }
-  return map;
-}
-
-export function getSignificantHailYears(county: County): Set<number> {
-  return new Set(
-    getHailEvents(county)
-      .filter(e => e.significant)
-      .map(e => e.year)
-  );
-}
-
-export interface HailCalendarCell {
-  year: number;
-  month: number;
-  maxSize: number;
-  count: number;
-  hasSignificant: boolean;
-}
-
-export function buildHailCalendar(county: County): HailCalendarCell[] {
-  const events = getHailEvents(county);
-  const map = new Map<string, HailCalendarCell>();
-  for (const e of events) {
-    const key = `${e.year}-${e.month}`;
-    if (!map.has(key)) {
-      map.set(key, { year: e.year, month: e.month, maxSize: 0, count: 0, hasSignificant: false });
-    }
-    const cell = map.get(key)!;
-    cell.count++;
-    cell.maxSize = Math.max(cell.maxSize, e.sizeInches);
-    if (e.significant) cell.hasSignificant = true;
-  }
-  return Array.from(map.values());
-}
-
-export function hailCalendarColor(cell: HailCalendarCell | undefined): string {
-  if (!cell || cell.count === 0) return 'bg-slate-800';
-  if (cell.maxSize >= 1.5) return 'bg-red-500';
-  if (cell.maxSize >= 1.0) return 'bg-orange-500';
-  return 'bg-yellow-500';
-}
-
-export const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-// ─── USDA NASS fetch (with fallback) ─────────────────────────────────────────
-export async function fetchUSDAYields(
-  county: County,
-  crop: CropType
-): Promise<number[] | null> {
-  try {
-    const state = county.includes('MN') ? 'MN' : 'WI';
-    const countyName = county.split(' ')[0].toUpperCase();
-    const commodity = crop === 'corn' ? 'CORN' : 'SOYBEANS';
-    const url = `https://quickstats.nass.usda.gov/api/api_GET/?key=DEMO_KEY&commodity_desc=${commodity}&statisticcat_desc=YIELD&unit_desc=BU%20%2F%20ACRE&state_alpha=${state}&county_name=${countyName}&year__GE=2009&format=JSON`;
-    const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
-    const data = await resp.json();
-    if (!data.data || !Array.isArray(data.data)) return null;
-    const sorted = data.data
-      .filter((d: Record<string,string>) => Number(d.year) >= 2009 && Number(d.year) <= 2023)
-      .sort((a: Record<string,string>, b: Record<string,string>) => Number(a.year) - Number(b.year));
-    if (sorted.length < 10) return null;
-    return sorted.map((d: Record<string,string>) => parseFloat(d.Value));
-  } catch {
-    return null;
-  }
+export function getDaysUntil(date: Date): number {
+  const now = new Date();
+  const diff = date.getTime() - now.getTime();
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
