@@ -110,8 +110,8 @@ export default function App() {
       <div className="no-print max-w-[1700px] mx-auto px-4 py-5 space-y-4">
         {/* Always visible */}
         <OBBBABanner />
-        <KeyDatesWidget />
-        <SetupPanel state={state} />
+        {activeTab === 'overview' && <KeyDatesWidget />}
+        {activeTab === 'overview' && <SetupPanel state={state} />}
 
         {/* Tab content */}
         {activeTab === 'overview' && (
