@@ -51,9 +51,16 @@ export default function App() {
       <div className="no-print bg-slate-900 border-b border-slate-700 sticky top-0 z-40 shadow-xl">
         <div className="max-w-[1700px] mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="text-xl font-black text-white tracking-tight">🌾 B&B Agrisales</div>
-            <div className="text-slate-600">|</div>
-            <div className="text-sm text-slate-400">Crop Insurance Decision Tool <span className="text-blue-400 font-semibold">v2</span></div>
+            <img
+              src="/root-risk-logo.jpg"
+              alt="Root Risk Management"
+              className="h-10 w-auto object-contain"
+              style={{ filter: 'invert(1) brightness(2)' }}
+            />
+            <div>
+              <div className="text-sm font-black text-white tracking-tight leading-tight">Root Risk Management</div>
+              <div className="text-xs text-slate-400 leading-tight">Crop Insurance Decision Tool</div>
+            </div>
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <span className="capitalize">{state.inputs.crop}</span>

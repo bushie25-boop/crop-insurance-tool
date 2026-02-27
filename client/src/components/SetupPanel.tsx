@@ -27,6 +27,30 @@ export default function SetupPanel({ state }: Props) {
       <div className="px-4 pb-4">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
 
+        {/* Client Name */}
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">Client Name</label>
+          <input
+            type="text"
+            value={state.clientName}
+            onChange={e => state.setClientName(e.target.value)}
+            placeholder="Farmer name..."
+            className="w-full bg-slate-700 text-white rounded px-2 py-2 text-sm border border-slate-600 placeholder-slate-500"
+          />
+        </div>
+
+        {/* Farm Name */}
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">Farm / Operation</label>
+          <input
+            type="text"
+            value={state.farmName}
+            onChange={e => state.setFarmName(e.target.value)}
+            placeholder="Farm name..."
+            className="w-full bg-slate-700 text-white rounded px-2 py-2 text-sm border border-slate-600 placeholder-slate-500"
+          />
+        </div>
+
         {/* Crop */}
         <div>
           <label className="block text-xs text-slate-400 mb-1">Crop</label>

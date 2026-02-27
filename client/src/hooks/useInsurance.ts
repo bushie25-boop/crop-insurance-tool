@@ -44,6 +44,8 @@ export function useInsurance() {
   const [backtestWindow, setBacktestWindow] = useState<BacktestWindow>(15);
   const [assumedYield2026, setAssumedYield2026] = useState<number>(173);
   const [yieldStability, setYieldStability] = useState<YieldStability>('average');
+  const [clientName, setClientName] = useState('');
+  const [farmName, setFarmName] = useState('');
 
   function updateInput<K extends keyof InsuranceInputs>(key: K, value: InsuranceInputs[K]) {
     setInputs(prev => {
@@ -174,6 +176,11 @@ export function useInsurance() {
     // Optimizer
     yieldStability,
     setYieldStability,
+    // Client info
+    clientName,
+    setClientName,
+    farmName,
+    setFarmName,
   };
 }
 

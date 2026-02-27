@@ -279,8 +279,9 @@ export default function QuoteBuilder({ state }: Props) {
         <div id="quote-print-area" className="hidden print:block bg-white text-black p-8 font-sans text-sm">
           <div className="flex justify-between items-start mb-6">
             <div>
-              <div className="text-2xl font-black">B&B Agrisales</div>
-              <div className="text-gray-600">Fountain City, Wisconsin</div>
+              <img src="/root-risk-logo.jpg" alt="Root Risk Management" style={{ height: '60px', objectFit: 'contain' }} />
+              <div className="text-2xl font-black">Root Risk Management</div>
+              <div className="text-gray-600">Fountain City, WI · 507-429-0165</div>
               <div className="text-gray-600">Quote prepared by: Stormy O'Day</div>
             </div>
             <div className="text-right">
@@ -367,7 +368,7 @@ export default function QuoteBuilder({ state }: Props) {
             <p>* Premiums are estimates only. Verify actual rates at: ewebapp.rma.usda.gov/apps/costestimator/</p>
             <p>* SCO/ECO payments are issued mid-year following the loss year. A 2026 loss would pay in mid-2027.</p>
             <p><strong>Sales Closing Date: March 15, 2026.</strong> Coverage must be purchased or changed prior to this date.</p>
-            <p>This quote was prepared by B&B Agrisales · Stormy O'Day · Fountain City, Wisconsin</p>
+            <p>This quote was prepared by Root Risk Management · Stormy O'Day · Fountain City, WI · 507-429-0165</p>
           </div>
         </div>
       )}
