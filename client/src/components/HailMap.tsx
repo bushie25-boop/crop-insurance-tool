@@ -66,8 +66,8 @@ export default function HailMap({ selectedCounty }: Props) {
   }, []);
 
   const allYears = [...new Set(hailEvents.map(e => e.year))].sort();
-  const minYear = allYears.length > 0 ? Math.min(...allYears) : 2005;
-  const maxYear = allYears.length > 0 ? Math.max(...allYears) : new Date().getFullYear();
+  const minYear = 2005; // fixed start year
+  const maxYear = new Date().getFullYear(); // always full range, not limited to loaded events
 
   // Filter events — match county by IEM uppercase name or display name
   const filtered = hailEvents.filter(e => {
