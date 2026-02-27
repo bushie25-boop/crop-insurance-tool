@@ -36,9 +36,10 @@ const COUNTY_DISPLAY: Record<string, string> = {
   BUFFALO: 'Buffalo WI',
   JACKSON: 'Jackson WI',
   HOUSTON: 'Houston MN',
+  WINONA: 'Winona MN',
 };
 
-const DISPLAY_COUNTIES = ['Trempealeau WI', 'Buffalo WI', 'Jackson WI', 'Houston MN'];
+const DISPLAY_COUNTIES = ['Trempealeau WI', 'Buffalo WI', 'Jackson WI', 'Houston MN', 'Winona MN'];
 
 interface Props {
   selectedCounty: string;

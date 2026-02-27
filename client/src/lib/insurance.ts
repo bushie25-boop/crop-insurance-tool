@@ -27,7 +27,7 @@ export const STATE_NAMES: Record<State, string> = {
 // Registry — add new counties here, everything else auto-updates
 export const COUNTY_REGISTRY: Record<State, string[]> = {
   WI: ['Trempealeau', 'Buffalo', 'Jackson'],
-  MN: ['Houston'],
+  MN: ['Houston', 'Winona'],
 };
 
 // Full county key = "County State" — used everywhere as the county identifier
@@ -132,6 +132,10 @@ export const COUNTY_RATES_CORN: Record<string, Record<number, number>> = {
     0.50: 0.0092, 0.55: 0.0138, 0.60: 0.0202, 0.65: 0.0276,
     0.70: 0.0368, 0.75: 0.0469, 0.80: 0.054,  0.85: 0.075,
   },
+  'Winona MN': {
+    0.50: 0.0097, 0.55: 0.0145, 0.60: 0.0212, 0.65: 0.0290,
+    0.70: 0.0386, 0.75: 0.0492, 0.80: 0.0567, 0.85: 0.0788,
+  },
 };
 
 export const COUNTY_RATES_CORN_IRRIGATED: Record<string, Record<number, number>> = {
@@ -150,6 +154,10 @@ export const COUNTY_RATES_CORN_IRRIGATED: Record<string, Record<number, number>>
   'Houston MN': {
     0.50: 0.0069, 0.55: 0.0104, 0.60: 0.0152, 0.65: 0.0207,
     0.70: 0.0276, 0.75: 0.0352, 0.80: 0.0405, 0.85: 0.056,
+  },
+  'Winona MN': {
+    0.50: 0.0072, 0.55: 0.0109, 0.60: 0.0160, 0.65: 0.0217,
+    0.70: 0.0290, 0.75: 0.0370, 0.80: 0.0425, 0.85: 0.0588,
   },
 };
 

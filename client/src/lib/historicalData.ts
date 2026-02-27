@@ -51,6 +51,13 @@ export const COUNTY_YIELDS: CountyYieldHistory[] = [
     trendAPH: [136,138,140,142,144,146,148,149,150,150,153,156,159,160,162,164,165,167,168,169,170,171,172,173,174,175],
   },
   {
+    county: 'Winona MN',
+    crop: 'corn',
+    years: [2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025],
+    yields: [116,148,128,145,168,152,148,158,162,155,160,138,105,158,172,168,178,172,175,148,182,168,172,178,185,182],
+    trendAPH: [118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150,152,154,156,158,160,162,164,166,168],
+  },
+  {
     county: 'Trempealeau WI',
     crop: 'soybeans',
     years: [2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025],
@@ -77,6 +84,13 @@ export const COUNTY_YIELDS: CountyYieldHistory[] = [
     years: [2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025],
     yields: [38,40,36,41,44,42,43,44,42,46,49,44,34,48,51,52,54,51,48,50,54,52,49,55,53,54],
     trendAPH: [37,38,39,40,41,42,42,43,43,43,44,45,46,46,47,48,49,49,50,50,51,51,52,52,53,54],
+  },
+  {
+    county: 'Winona MN',
+    crop: 'soybeans',
+    years: [2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025],
+    yields: [36,42,38,40,45,41,40,44,45,43,44,38,30,44,48,47,50,50,50,42,52,48,50,52,54,52],
+    trendAPH: [35,36,37,38,39,40,40,41,41,42,43,44,44,45,46,47,48,48,49,49,50,51,51,52,52,53],
   },
 ];
 
@@ -198,6 +212,17 @@ export const HAIL_EVENTS_SAMPLE: HailEvent[] = [
   { year: 2021, county: 'Houston MN', date: '2021-06-28', magnitude: 0.75, description: 'Hail Houston County', lat: 43.70, lng: -91.58 },
   { year: 2023, county: 'Houston MN', date: '2023-07-15', magnitude: 1.0, description: 'Hail 1.0" tracking NE through Houston', lat: 43.74, lng: -91.50 },
   { year: 2024, county: 'Houston MN', date: '2024-06-30', magnitude: 1.5, description: 'Large hail 1.5" with significant supercell', lat: 43.77, lng: -91.45 },
+
+  // Winona MN
+  { year: 2005, county: 'Winona MN', date: '2005-07-12', magnitude: 0.75, description: 'Hail with storms, SE Minnesota', lat: 43.98, lng: -91.65 },
+  { year: 2008, county: 'Winona MN', date: '2008-07-03', magnitude: 1.0, description: 'Hail 1.0" Winona County MN', lat: 44.02, lng: -91.58 },
+  { year: 2011, county: 'Winona MN', date: '2011-06-22', magnitude: 0.88, description: 'Penny hail Winona County', lat: 43.95, lng: -91.70 },
+  { year: 2014, county: 'Winona MN', date: '2014-07-09', magnitude: 1.0, description: 'Hail Winona County MN', lat: 44.00, lng: -91.62 },
+  { year: 2017, county: 'Winona MN', date: '2017-07-28', magnitude: 1.0, description: 'Hail 1.0" with severe storm', lat: 43.92, lng: -91.68 },
+  { year: 2019, county: 'Winona MN', date: '2019-08-06', magnitude: 1.25, description: 'Hail 1.25" with supercell SE MN', lat: 44.05, lng: -91.55 },
+  { year: 2021, county: 'Winona MN', date: '2021-06-29', magnitude: 0.75, description: 'Hail Winona County', lat: 43.97, lng: -91.64 },
+  { year: 2023, county: 'Winona MN', date: '2023-07-16', magnitude: 1.0, description: 'Hail 1.0" tracking NE through Winona', lat: 43.99, lng: -91.60 },
+  { year: 2024, county: 'Winona MN', date: '2024-07-01', magnitude: 1.5, description: 'Large hail 1.5" with significant supercell', lat: 44.01, lng: -91.58 },
 ];
 
 export function getHailEvents(county: string): HailEvent[] {
@@ -312,6 +337,13 @@ export const PROAG_HAIL_RATES: Record<string, HailRateEntry[]> = {
     { policyForm: 'Comp 2+', cornRate: 1.00, beanRate: 1.55, description: 'Comprehensive level 2+' },
     { policyForm: 'Comp 3',  cornRate: 1.15, beanRate: 1.90, description: 'Comprehensive level 3 (most common)' },
     { policyForm: 'Comp 4',  cornRate: 1.35, beanRate: 2.20, description: 'Comprehensive level 4 (max coverage)' },
+  ],
+  'Winona MN': [
+    { policyForm: 'Basic',   cornRate: 0.80, beanRate: 1.15, description: 'Basic coverage, 0% min loss' },
+    { policyForm: 'Comp 2',  cornRate: 0.95, beanRate: 1.45, description: 'Comprehensive level 2' },
+    { policyForm: 'Comp 2+', cornRate: 1.05, beanRate: 1.60, description: 'Comprehensive level 2+' },
+    { policyForm: 'Comp 3',  cornRate: 1.20, beanRate: 2.00, description: 'Comprehensive level 3 (most common)' },
+    { policyForm: 'Comp 4',  cornRate: 1.40, beanRate: 2.30, description: 'Comprehensive level 4 (max coverage)' },
   ],
 };
 

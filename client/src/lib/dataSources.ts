@@ -49,6 +49,7 @@ const COUNTY_STATE_MAP: Record<string, { state: string; county: string }> = {
   'Buffalo WI':     { state: 'WI', county: 'BUFFALO' },
   'Jackson WI':     { state: 'WI', county: 'JACKSON' },
   'Houston MN':     { state: 'MN', county: 'HOUSTON' },
+  'Winona MN':      { state: 'MN', county: 'WINONA' },
 };
 
 export async function fetchNASSYields(
