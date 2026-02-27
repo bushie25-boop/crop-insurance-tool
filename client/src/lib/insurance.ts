@@ -38,30 +38,29 @@ export const ECO_TOP_MAP: Record<ECOLevel, number> = {
   'ECO-95': 0.95,
 };
 
-// Base actuarial rates for CORN (% of liability)
-// Source: Scout research from RMA ADM Browser (Trempealeau WI corn, non-irrigated)
+// Calibrated to Storm O'Day benchmark: 180 APH, 80% RP BU, Trempealeau WI ≈ $58–68/ac gross (Feb 2026)
 // ⚠️ ESTIMATES — verify at: ewebapp.rma.usda.gov/apps/costestimator/
 export const BASE_RATES_CORN: Record<number, number> = {
-  0.50: 0.004,
-  0.55: 0.006,
-  0.60: 0.008,
-  0.65: 0.010,
-  0.70: 0.012,
-  0.75: 0.018,
-  0.80: 0.025,
-  0.85: 0.035,
+  0.50: 0.010,
+  0.55: 0.015,
+  0.60: 0.022,
+  0.65: 0.030,
+  0.70: 0.040,
+  0.75: 0.051,
+  0.80: 0.059,
+  0.85: 0.082,
 };
 
 // Irrigated corn rates ~25% lower than non-irrigated (less yield variance)
 export const BASE_RATES_CORN_IRRIGATED: Record<number, number> = {
-  0.50: 0.003,
-  0.55: 0.0045,
-  0.60: 0.006,
-  0.65: 0.0075,
-  0.70: 0.009,
-  0.75: 0.013,
-  0.80: 0.018,
-  0.85: 0.026,
+  0.50: 0.0075,
+  0.55: 0.011,
+  0.60: 0.016,
+  0.65: 0.022,
+  0.70: 0.030,
+  0.75: 0.038,
+  0.80: 0.044,
+  0.85: 0.062,
 };
 
 // Soybeans in this region are rarely irrigated — single rate table used for both practices
