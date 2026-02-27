@@ -7,7 +7,7 @@ import {
   ResponsiveContainer, ReferenceLine, Cell,
 } from 'recharts';
 import type { InsuranceState } from '../hooks/useInsurance';
-import { KEY_DATES_2026, getDaysUntil, getHailEvents } from '../lib/historicalData';
+import { KEY_DATES_2026, getDaysUntil } from '../lib/historicalData';
 
 
 interface Props {
@@ -68,8 +68,6 @@ export default function PrintReport({ state, printMode, printDate }: Props) {
 
   const crop = inputs.crop;
   const coveragePct = Math.round(inputs.coverageLevel * 100);
-  const hailEvents = getHailEvents(inputs.county);
-
   // ── Section 3: Backtest chart data ──
   const numYears = backtestYears.length;
   const payYears = backtestYears.filter(r => r.totalIndemnity > 0).length;
@@ -294,11 +292,7 @@ export default function PrintReport({ state, printMode, printDate }: Props) {
           <div style={{ fontSize: '11px', color: '#444', marginTop: '8px' }}>
             Current selection: <strong>{currentLabel}</strong>{currentRank ? ` (ranked #${currentRank} of ${optimizerResults.length})` : ''}
           </div>
-          {hailEvents.length > 0 && (
-            <div style={{ background: '#fff8f0', border: '1px solid #e0a060', borderRadius: '4px', padding: '8px 12px', marginTop: '10px', fontSize: '11px' }}>
-              ⚠️ <strong>Hail Exposure:</strong> {hailEvents.length} hail events recorded in {inputs.county} since 2000. At {coveragePct}% coverage, the top {100 - coveragePct}% of crop value is uninsured. Consider standalone hail insurance ($5–15/ac).
-            </div>
-          )}
+
         </div>
       ) : (
         <p style={{ fontSize: '12px', color: '#666', fontStyle: 'italic' }}>Run the Optimizer tab to see personalized recommendations.</p>

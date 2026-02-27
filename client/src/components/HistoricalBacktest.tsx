@@ -276,8 +276,10 @@ export default function HistoricalBacktest({ state }: Props) {
                     const cumLabel = `${n}yr`;
                     const colors = cardColors[idx];
                     return (
-                      <div key={s.stability} className={`rounded-lg border-2 ${colors.border} overflow-hidden`}>
-                        <div className={`${colors.header} text-white text-xs font-bold px-3 py-2`}>{s.label}</div>
+                      <div key={s.stability} onClick={() => state.setYieldStability(s.stability)} className={`rounded-lg border-2 ${colors.border} overflow-hidden cursor-pointer hover:opacity-90 transition`}>
+                        <div className={`${colors.header} text-white text-xs font-bold px-3 py-2`}>{s.label}{state.yieldStability === s.stability && (
+                          <span className="text-xs bg-white/20 rounded px-1 ml-2">✓ Active</span>
+                        )}</div>
                         <div className="bg-slate-800 p-3 space-y-1 text-xs">
                           <div className="flex justify-between"><span className="text-slate-400">Trigger rate</span><span className="text-white font-semibold">{summary.anyTriggers}/{n} ({trigPct}%)</span></div>
                           <div className="flex justify-between"><span className="text-slate-400">Avg net/yr</span><span className={`font-semibold ${summary.avgNetPerAcre >= 0 ? 'text-green-400' : 'text-red-400'}`}>{summary.avgNetPerAcre >= 0 ? '+' : ''}${summary.avgNetPerAcre.toFixed(2)}/ac</span></div>
