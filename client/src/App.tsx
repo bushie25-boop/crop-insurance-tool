@@ -39,10 +39,10 @@ export default function App() {
     <div className="min-h-screen bg-slate-900 text-slate-100">
       <style>{`
         @media print {
-          body { background: white !important; }
-          .no-print { display: none !important; }
-          .print-report-overlay { position: static !important; }
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; visibility: hidden !important; }
+          .print-report-overlay, .print-report-overlay * { visibility: visible !important; }
+          .print-report-overlay { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; background: white !important; }
+          body { background: white !important; margin: 0 !important; }
         }
       `}</style>
 
