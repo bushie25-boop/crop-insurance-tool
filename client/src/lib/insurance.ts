@@ -40,6 +40,7 @@ export const ECO_TOP_MAP: Record<ECOLevel, number> = {
 
 // Calibrated to Storm O'Day benchmark: 180 APH, 80% RP BU, Trempealeau WI ≈ $58–68/ac gross (Feb 2026)
 // ⚠️ ESTIMATES — verify at: ewebapp.rma.usda.gov/apps/costestimator/
+// Kept as fallback — prefer COUNTY_RATES_CORN for county-specific lookups
 export const BASE_RATES_CORN: Record<number, number> = {
   0.50: 0.010,
   0.55: 0.015,
@@ -52,6 +53,7 @@ export const BASE_RATES_CORN: Record<number, number> = {
 };
 
 // Irrigated corn rates ~25% lower than non-irrigated (less yield variance)
+// Kept as fallback — prefer COUNTY_RATES_CORN_IRRIGATED for county-specific lookups
 export const BASE_RATES_CORN_IRRIGATED: Record<number, number> = {
   0.50: 0.0075,
   0.55: 0.011,
@@ -61,6 +63,51 @@ export const BASE_RATES_CORN_IRRIGATED: Record<number, number> = {
   0.75: 0.038,
   0.80: 0.044,
   0.85: 0.062,
+};
+
+// Per-county actuarial base rates for CORN, non-irrigated (% of liability per acre)
+// Calibrated to Storm O'Day benchmark: Trempealeau WI 80% RP BU ≈ $58–68/ac gross
+// Other counties scaled by terrain/loss history relative to Trempealeau:
+//   Buffalo WI  ×0.95 — similar bluff terrain, slightly more river bottom ground
+//   Jackson WI  ×0.85 — more diverse terrain, Black River area, lower loss history
+//   Houston MN  ×0.92 — Driftless MN side, good production county
+// ⚠️ ESTIMATES — verify at: ewebapp.rma.usda.gov/apps/costestimator/
+export const COUNTY_RATES_CORN: Record<string, Record<number, number>> = {
+  'Trempealeau WI': {
+    0.50: 0.010, 0.55: 0.015, 0.60: 0.022, 0.65: 0.030,
+    0.70: 0.040, 0.75: 0.051, 0.80: 0.059, 0.85: 0.082,
+  },
+  'Buffalo WI': {
+    0.50: 0.0095, 0.55: 0.0143, 0.60: 0.0209, 0.65: 0.0285,
+    0.70: 0.038,  0.75: 0.0485, 0.80: 0.056,  0.85: 0.078,
+  },
+  'Jackson WI': {
+    0.50: 0.0085, 0.55: 0.0128, 0.60: 0.0187, 0.65: 0.0255,
+    0.70: 0.034,  0.75: 0.0434, 0.80: 0.050,  0.85: 0.070,
+  },
+  'Houston MN': {
+    0.50: 0.0092, 0.55: 0.0138, 0.60: 0.0202, 0.65: 0.0276,
+    0.70: 0.0368, 0.75: 0.0469, 0.80: 0.054,  0.85: 0.075,
+  },
+};
+
+export const COUNTY_RATES_CORN_IRRIGATED: Record<string, Record<number, number>> = {
+  'Trempealeau WI': {
+    0.50: 0.0075, 0.55: 0.011,  0.60: 0.016, 0.65: 0.022,
+    0.70: 0.030,  0.75: 0.038,  0.80: 0.044, 0.85: 0.062,
+  },
+  'Buffalo WI': {
+    0.50: 0.0071, 0.55: 0.0105, 0.60: 0.0152, 0.65: 0.0209,
+    0.70: 0.0285, 0.75: 0.0361, 0.80: 0.0418, 0.85: 0.059,
+  },
+  'Jackson WI': {
+    0.50: 0.0064, 0.55: 0.0094, 0.60: 0.0136, 0.65: 0.0187,
+    0.70: 0.0255, 0.75: 0.0323, 0.80: 0.0375, 0.85: 0.053,
+  },
+  'Houston MN': {
+    0.50: 0.0069, 0.55: 0.0104, 0.60: 0.0152, 0.65: 0.0207,
+    0.70: 0.0276, 0.75: 0.0352, 0.80: 0.0405, 0.85: 0.056,
+  },
 };
 
 // Soybeans in this region are rarely irrigated — single rate table used for both practices
@@ -218,11 +265,22 @@ export function calcLiability(inputs: InsuranceInputs): number {
  * ⚠️ ESTIMATED — uses approximate base rates. Verify at RMA Cost Estimator.
  */
 export function calcGrossPremiumPerAcre(inputs: InsuranceInputs): number {
-  const { crop, coverageLevel, planType, unitStructure, aphYield, springPrice, irrigated } = inputs;
+  const { crop, coverageLevel, planType, unitStructure, aphYield, springPrice, irrigated, county } = inputs;
   const key = Math.round(coverageLevel * 100) / 100;
-  const cornRateTable = (irrigated && crop === 'corn') ? BASE_RATES_CORN_IRRIGATED : BASE_RATES_CORN;
-  const cornRate = cornRateTable[key] ?? 0.018;
-  const baseRate = crop === 'soybeans' ? cornRate * 0.9 : cornRate;
+
+  // Select county-specific rate table
+  let baseRate: number;
+  if (crop === 'corn') {
+    const rateTable = irrigated
+      ? (COUNTY_RATES_CORN_IRRIGATED[county] ?? COUNTY_RATES_CORN_IRRIGATED['Trempealeau WI'])
+      : (COUNTY_RATES_CORN[county] ?? COUNTY_RATES_CORN['Trempealeau WI']);
+    baseRate = rateTable[key] ?? 0.059;
+  } else {
+    // Soybeans: 90% of county corn rate (lower yield variance)
+    const cornTable = COUNTY_RATES_CORN[county] ?? COUNTY_RATES_CORN['Trempealeau WI'];
+    baseRate = (cornTable[key] ?? 0.053) * 0.9;
+  }
+
   const planMult = PLAN_MULTIPLIER[planType];
   const unitMult = UNIT_MULTIPLIER[unitStructure];
   const liabilityPerAcre = aphYield * coverageLevel * springPrice;
