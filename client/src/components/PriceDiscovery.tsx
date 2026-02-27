@@ -104,7 +104,7 @@ export default function PriceDiscovery({ state, dataSources }: Props) {
               dot={{ fill: '#3b82f6', r: 3 }} />
             <Line dataKey="harvest" name="Harvest (fall)" stroke="#f59e0b" strokeWidth={2}
               dot={{ fill: '#f59e0b', r: 3 }} connectNulls={false} />
-            <Bar dataKey="rpAdvantage" name="Harvest < Projected" fill="#ef444430" yAxisId="right" hide />
+
           </ComposedChart>
         </ResponsiveContainer>
       </div>
