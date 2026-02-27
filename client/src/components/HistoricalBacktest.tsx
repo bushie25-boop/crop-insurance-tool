@@ -52,11 +52,18 @@ export default function HistoricalBacktest({ state }: Props) {
       netPerAcre: parseFloat(yr.netPerAcre.toFixed(2)),
       cumulativeNet: parseFloat(cumNet.toFixed(2)),
       countyYield: yr.countyYield,
+      countyAPH: yr.countyAPH,
+      revenueRatio: parseFloat((yr.countyRevenueRatio * 100).toFixed(1)),
       projPrice: yr.projPrice,
       harvPrice: yr.harvPrice,
       hail: hailEvt ? hailEvt.magnitude : undefined,
     };
   });
+
+  // Worst year by revenue ratio
+  const worstYear = backtestYears.reduce((prev, cur) =>
+    cur.countyRevenueRatio < prev.countyRevenueRatio ? cur : prev, backtestYears[0]);
+  const lowestRatio = parseFloat((worstYear.countyRevenueRatio * 100).toFixed(1));
 
   const { underlyingTriggers, scoTriggers, ecoTriggers, anyTriggers, years,
     avgFarmerPremium, avgTotalIndemnity, avgNetPerAcre } = backtestSummary;
@@ -121,6 +128,7 @@ export default function HistoricalBacktest({ state }: Props) {
           <div className="text-2xl font-black text-white">{anyTriggers}/{years}</div>
           <div className="text-xs text-slate-400">Years triggered any payment</div>
           <div className="text-sm text-slate-300">{Math.round((anyTriggers/years)*100)}% rate</div>
+          <div className="text-xs text-slate-500 mt-1">Worst: {worstYear.year} ({lowestRatio}%)</div>
         </div>
         <div className="bg-slate-700 rounded-lg p-3 text-center">
           <div className="text-2xl font-black text-yellow-400">${fmt(avgFarmerPremium)}/ac</div>
@@ -174,6 +182,44 @@ export default function HistoricalBacktest({ state }: Props) {
         </ResponsiveContainer>
       </div>
 
+      {/* County Yield vs Expected (Trend) Yield chart */}
+      <div>
+        <div className="text-sm text-slate-400 mb-2">County Yield vs Expected (Trend) Yield</div>
+        <ResponsiveContainer width="100%" height={200}>
+          <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+            <XAxis dataKey="year" tick={{ fill: '#9CA3AF', fontSize: 11 }} />
+            <YAxis
+              tick={{ fill: '#9CA3AF', fontSize: 11 }}
+              tickFormatter={v => `${v}`}
+              label={{ value: 'bu/ac', angle: -90, position: 'insideLeft', fill: '#9CA3AF', fontSize: 11, offset: 10 }}
+            />
+            <Tooltip
+              content={({ active, payload, label }) => {
+                if (!active || !payload?.length) return null;
+                const d = payload[0]?.payload as { countyYield: number; countyAPH: number; revenueRatio: number };
+                const ratio = d.revenueRatio;
+                const ratioColor = ratio < 86 ? '#f87171' : ratio < 95 ? '#fbbf24' : '#4ade80';
+                const trigger = ratio < 86 ? ' ← below 86%, SCO triggered' : ratio < 95 ? ' ← below 95%' : '';
+                return (
+                  <div style={{ background: '#1e293b', border: '1px solid #475569', borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
+                    <div style={{ color: '#fff', fontWeight: 'bold', marginBottom: 4 }}>Year: {label}</div>
+                    <div style={{ color: '#22c55e' }}>Actual Yield: {d.countyYield} bu/ac</div>
+                    <div style={{ color: '#94a3b8' }}>Expected Yield: {d.countyAPH} bu/ac</div>
+                    <div style={{ color: ratioColor }}>Revenue Ratio: {ratio}%{trigger}</div>
+                  </div>
+                );
+              }}
+            />
+            <Legend />
+            <Line dataKey="countyAPH" name="Expected (Trend)" stroke="#94a3b8" strokeWidth={2}
+              strokeDasharray="4 4" dot={false} type="monotone" />
+            <Line dataKey="countyYield" name="Actual County Yield" stroke="#22c55e" strokeWidth={2}
+              dot={{ fill: '#22c55e', r: 3 }} type="monotone" />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+
       {/* Year-by-year table */}
       <div>
         <div className="text-sm text-slate-400 mb-2">Year-by-Year Detail</div>
@@ -183,6 +229,8 @@ export default function HistoricalBacktest({ state }: Props) {
               <tr className="text-slate-500 border-b border-slate-700">
                 <th className="text-left py-1 px-2">Year</th>
                 <th className="text-right py-1 px-2">County Yield</th>
+                <th className="text-right py-1 px-2">Expected Yield</th>
+                <th className="text-right py-1 px-2">Rev Ratio</th>
                 <th className="text-right py-1 px-2">Proj $</th>
                 <th className="text-right py-1 px-2">Harv $</th>
                 <th className="text-right py-1 px-2">Underlying</th>
@@ -201,6 +249,14 @@ export default function HistoricalBacktest({ state }: Props) {
                   <tr key={yr.year} className={`border-b border-slate-700/50 ${yr.totalIndemnity > 0 ? 'bg-blue-900/10' : ''}`}>
                     <td className="py-1 px-2 font-semibold text-white">{yr.year}</td>
                     <td className="py-1 px-2 text-right text-slate-300">{fmt(yr.countyYield, 0)} bu</td>
+                    <td className="py-1 px-2 text-right text-slate-400">{fmt(yr.countyAPH, 0)} bu</td>
+                    <td className="py-1 px-2 text-right font-semibold">
+                      {(() => {
+                        const ratio = parseFloat((yr.countyRevenueRatio * 100).toFixed(1));
+                        const cls = ratio < 86 ? 'text-red-400' : ratio < 95 ? 'text-yellow-400' : 'text-green-400';
+                        return <span className={cls}>{ratio}%</span>;
+                      })()}
+                    </td>
                     <td className="py-1 px-2 text-right text-slate-300">${yr.projPrice.toFixed(2)}</td>
                     <td className="py-1 px-2 text-right text-slate-300">${yr.harvPrice.toFixed(2)}</td>
                     <td className="py-1 px-2 text-right">
