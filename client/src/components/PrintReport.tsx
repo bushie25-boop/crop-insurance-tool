@@ -7,7 +7,7 @@ import {
   ResponsiveContainer, ReferenceLine, Cell,
 } from 'recharts';
 import type { InsuranceState } from '../hooks/useInsurance';
-import { KEY_DATES_2026, getDaysUntil } from '../lib/historicalData';
+import { KEY_DATES_2026, getDaysUntil, getHailRates, calcHailPremiumPerAcre } from '../lib/historicalData';
 
 
 interface Props {
@@ -297,6 +297,51 @@ export default function PrintReport({ state, printMode, printDate }: Props) {
       ) : (
         <p style={{ fontSize: '12px', color: '#666', fontStyle: 'italic' }}>Run the Optimizer tab to see personalized recommendations.</p>
       )}
+
+      {/* ── SECTION 4b: Hail Insurance Rates ── */}
+      <div style={S.h2}>PRO AG HAIL INSURANCE RATES</div>
+      {(() => {
+        const hailRates = getHailRates(inputs.county);
+        const valuePerAcre = inputs.aphYield * inputs.springPrice;
+        const keyForms = ['Basic', 'Comp 3', 'Comp 4'];
+        const rows = hailRates.filter(e => keyForms.includes(e.policyForm));
+        return (
+          <div>
+            <div style={{ fontSize: '11px', color: '#555', marginBottom: '6px' }}>
+              {inputs.county} · {inputs.crop === 'corn' ? 'Corn' : 'Soybeans'} · Value basis: {inputs.aphYield} bu/ac × ${inputs.springPrice}/bu = ${valuePerAcre.toFixed(0)}/ac
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+              <thead>
+                <tr style={{ background: '#f5f5f5' }}>
+                  <th style={{ textAlign: 'left', padding: '4px 8px', border: '1px solid #ddd' }}>Policy Form</th>
+                  <th style={{ textAlign: 'right', padding: '4px 8px', border: '1px solid #ddd' }}>Rate/$100</th>
+                  <th style={{ textAlign: 'right', padding: '4px 8px', border: '1px solid #ddd' }}>Est. Cost/ac</th>
+                  <th style={{ textAlign: 'right', padding: '4px 8px', border: '1px solid #ddd' }}>For {inputs.acres} acres</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(entry => {
+                  const rate = inputs.crop === 'corn' ? entry.cornRate : entry.beanRate;
+                  const costPerAcre = calcHailPremiumPerAcre(rate, valuePerAcre);
+                  return (
+                    <tr key={entry.policyForm} style={{ background: entry.policyForm === 'Comp 3' ? '#fffbeb' : 'white' }}>
+                      <td style={{ padding: '4px 8px', border: '1px solid #ddd', fontWeight: entry.policyForm === 'Comp 3' ? 'bold' : 'normal' }}>
+                        {entry.policyForm}{entry.policyForm === 'Comp 3' ? ' ★ most common' : ''}
+                      </td>
+                      <td style={{ padding: '4px 8px', border: '1px solid #ddd', textAlign: 'right' }}>${rate.toFixed(2)}</td>
+                      <td style={{ padding: '4px 8px', border: '1px solid #ddd', textAlign: 'right', fontWeight: 'bold' }}>${costPerAcre.toFixed(2)}</td>
+                      <td style={{ padding: '4px 8px', border: '1px solid #ddd', textAlign: 'right' }}>${(costPerAcre * inputs.acres).toLocaleString('en-US', {maximumFractionDigits: 0})}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div style={{ fontSize: '10px', color: '#888', marginTop: '4px' }}>
+              Source: Pro Ag rate file 2026. Contact Root Risk Management for final quote.
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── SECTION 5: Grain Marketing Risk ── */}
       <div style={S.h2}>GRAIN MARKETING RISK</div>

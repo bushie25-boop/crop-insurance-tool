@@ -270,3 +270,58 @@ export function getDaysUntil(date: Date): number {
   const diff = date.getTime() - now.getTime();
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
+
+// ─── Pro Ag Hail Insurance Rates ─────────────────────────────────────────────
+// Source: Pro Ag rate file, Wisconsin 2026
+// Rates are per $100 of crop value (e.g., 0.70 = $0.70 per $100 of value)
+// Column A = Corn (Class A), Column B = Soybeans (Class B)
+// Policy forms: Basic (0% min loss) → Comp 2 → Comp 3 → Comp 4 (most comprehensive)
+
+export interface HailRateEntry {
+  policyForm: string;
+  cornRate: number;    // $ per $100 of corn value
+  beanRate: number;    // $ per $100 of soybean value
+  description: string;
+}
+
+export const PROAG_HAIL_RATES: Record<string, HailRateEntry[]> = {
+  'Trempealeau WI': [
+    { policyForm: 'Basic',   cornRate: 0.70, beanRate: 1.05, description: 'Basic coverage, 0% min loss' },
+    { policyForm: 'Comp 2',  cornRate: 0.85, beanRate: 1.30, description: 'Comprehensive level 2' },
+    { policyForm: 'Comp 2+', cornRate: 0.95, beanRate: 1.45, description: 'Comprehensive level 2+' },
+    { policyForm: 'Comp 3',  cornRate: 1.10, beanRate: 1.80, description: 'Comprehensive level 3 (most common)' },
+    { policyForm: 'Comp 4',  cornRate: 1.30, beanRate: 2.10, description: 'Comprehensive level 4 (max coverage)' },
+  ],
+  'Buffalo WI': [
+    { policyForm: 'Basic',   cornRate: 0.80, beanRate: 1.25, description: 'Basic coverage, 0% min loss' },
+    { policyForm: 'Comp 2',  cornRate: 0.95, beanRate: 1.55, description: 'Comprehensive level 2' },
+    { policyForm: 'Comp 2+', cornRate: 1.10, beanRate: 1.70, description: 'Comprehensive level 2+' },
+    { policyForm: 'Comp 3',  cornRate: 1.25, beanRate: 2.15, description: 'Comprehensive level 3 (most common)' },
+    { policyForm: 'Comp 4',  cornRate: 1.50, beanRate: 2.50, description: 'Comprehensive level 4 (max coverage)' },
+  ],
+  'Jackson WI': [
+    { policyForm: 'Basic',   cornRate: 0.60, beanRate: 0.90, description: 'Basic coverage, 0% min loss' },
+    { policyForm: 'Comp 2',  cornRate: 0.70, beanRate: 1.15, description: 'Comprehensive level 2' },
+    { policyForm: 'Comp 2+', cornRate: 0.80, beanRate: 1.25, description: 'Comprehensive level 2+' },
+    { policyForm: 'Comp 3',  cornRate: 0.95, beanRate: 1.55, description: 'Comprehensive level 3 (most common)' },
+    { policyForm: 'Comp 4',  cornRate: 1.15, beanRate: 1.80, description: 'Comprehensive level 4 (max coverage)' },
+  ],
+  'Houston MN': [
+    { policyForm: 'Basic',   cornRate: 0.75, beanRate: 1.10, description: 'Basic coverage, 0% min loss' },
+    { policyForm: 'Comp 2',  cornRate: 0.90, beanRate: 1.40, description: 'Comprehensive level 2' },
+    { policyForm: 'Comp 2+', cornRate: 1.00, beanRate: 1.55, description: 'Comprehensive level 2+' },
+    { policyForm: 'Comp 3',  cornRate: 1.15, beanRate: 1.90, description: 'Comprehensive level 3 (most common)' },
+    { policyForm: 'Comp 4',  cornRate: 1.35, beanRate: 2.20, description: 'Comprehensive level 4 (max coverage)' },
+  ],
+};
+
+export function getHailRates(county: string): HailRateEntry[] {
+  return PROAG_HAIL_RATES[county] ?? PROAG_HAIL_RATES['Trempealeau WI'];
+}
+
+// Calculate hail premium per acre
+// rate = cornRate or beanRate from HailRateEntry (per $100)
+// valuePerAcre = APH × price per bushel
+export function calcHailPremiumPerAcre(ratePerHundred: number, valuePerAcre: number): number {
+  return (ratePerHundred / 100) * valuePerAcre;
+}

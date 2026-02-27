@@ -6,7 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer } from 
 import { type InsuranceState, type YieldStability } from '../hooks/useInsurance';
 import { type DataSourcesState } from '../hooks/useDataSources';
 import { runOptimizer, type OptimizerCombo } from '../lib/insurance';
-import { getHailEvents, CORN_PRICES, SOYBEAN_PRICES } from '../lib/historicalData';
+import { getHailEvents, CORN_PRICES, SOYBEAN_PRICES, getHailRates, calcHailPremiumPerAcre } from '../lib/historicalData';
 
 interface Props {
   state: InsuranceState;
@@ -310,8 +310,51 @@ export default function OptimizerTab({ state }: Props) {
 
           <div className="bg-amber-900/20 rounded-lg p-3 text-xs text-amber-200">
             💡 <strong>Consider:</strong> If going with lower RP coverage + ECO, talk to your agent about standalone hail insurance to cover the gap.
-            Hail policies typically run $5–15/ac for corn in this region and cover the full crop value — not just the insured band.
+            Hail policies cover the full crop value — not just the insured band. See Pro Ag rates below.
           </div>
+
+          {/* Real Pro Ag Hail Rates */}
+          {(() => {
+            const hailRates = getHailRates(inputs.county);
+            const valuePerAcre = inputs.aphYield * inputs.springPrice;
+            return (
+              <div className="mt-3">
+                <div className="text-sm font-semibold text-amber-200 mb-2">
+                  📋 Pro Ag Hail Rates — {inputs.county} ({inputs.crop === 'corn' ? 'Corn' : 'Soybeans'})
+                </div>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-slate-400 border-b border-slate-600">
+                      <th className="text-left py-1">Policy Form</th>
+                      <th className="text-right py-1">Rate/$100</th>
+                      <th className="text-right py-1">Est. Cost/ac</th>
+                      <th className="text-right py-1">For {inputs.acres} acres</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hailRates.map(entry => {
+                      const rate = inputs.crop === 'corn' ? entry.cornRate : entry.beanRate;
+                      const costPerAcre = calcHailPremiumPerAcre(rate, valuePerAcre);
+                      return (
+                        <tr key={entry.policyForm} className={`border-b border-slate-700/50 ${entry.policyForm === 'Comp 3' ? 'bg-amber-900/20 font-semibold' : ''}`}>
+                          <td className="py-1 text-slate-200">
+                            {entry.policyForm}
+                            {entry.policyForm === 'Comp 3' && <span className="ml-1 text-amber-300 text-xs">★ most common</span>}
+                          </td>
+                          <td className="py-1 text-right text-slate-300">${rate.toFixed(2)}</td>
+                          <td className="py-1 text-right text-white font-semibold">${costPerAcre.toFixed(2)}</td>
+                          <td className="py-1 text-right text-slate-300">${(costPerAcre * inputs.acres).toLocaleString('en-US', {maximumFractionDigits: 0})}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <div className="mt-2 text-xs text-slate-500">
+                  Source: Pro Ag rate file 2026 · Value basis: {inputs.aphYield} bu/ac × ${inputs.springPrice}/bu = ${valuePerAcre.toFixed(0)}/ac · Contact Root Risk Management for final quote.
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
