@@ -1,5 +1,5 @@
 // HistoricalBacktest.tsx — 15-year backtest with stacked bar chart
-import React from 'react';
+import React, { useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   LineChart, Line, ComposedChart, ReferenceLine, ResponsiveContainer
@@ -21,12 +21,13 @@ const WINDOW_OPTIONS: Array<{ label: string; value: import('../hooks/useInsuranc
   { label: '15 yr', value: 15 },
   { label: '20 yr', value: 20 },
   { label: '25 yr', value: 25 },
-  { label: 'All (24)', value: 'all' },
+  { label: 'All (25)', value: 'all' },
 ];
 
 export default function HistoricalBacktest({ state }: Props) {
   const { backtestYears, backtestSummary, inputs, backtestWindow, setBacktestWindow } = state;
   const hailEvents = getHailEvents(inputs.county);
+  const [showExplainer, setShowExplainer] = useState(false);
 
   if (!backtestYears.length) {
     return (
@@ -89,6 +90,29 @@ export default function HistoricalBacktest({ state }: Props) {
           Using {inputs.county} county yields · {inputs.planType} {Math.round(inputs.coverageLevel * 100)}% ·
           {yearRangeLabel} · 📊 Estimated
         </p>
+      </div>
+
+      {/* How this works explainer */}
+      <div>
+        <button
+          onClick={() => setShowExplainer(v => !v)}
+          className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+        >
+          ℹ️ How trigger rate is calculated {showExplainer ? '▴' : '▾'}
+        </button>
+        {showExplainer && (
+          <div className="mt-2 p-3 bg-slate-900/50 rounded-lg text-xs text-slate-400 space-y-1">
+            <div className="font-semibold text-slate-300 mb-1">How the backtest works:</div>
+            <div>• Each year uses actual Trempealeau/Buffalo/Jackson/Houston county yields from USDA NASS paired with real RMA projected and harvest prices for that year.</div>
+            <div>• Underlying policy (YP/RP/RP-HPE): triggers when county revenue (county yield × harvest price) falls short of your farm guarantee (APH × coverage% × price). County yield is used as a farm yield proxy — individual farm data varies.</div>
+            <div>• SCO triggers when county revenue ratio (actual county revenue ÷ expected county revenue) falls below 86%.</div>
+            <div>• ECO triggers when county revenue ratio falls below 90% (ECO-90) or 95% (ECO-95).</div>
+            <div>• A bad county yield year (like 2012 drought: 108 bu/ac vs ~157 trend) drops the revenue ratio to ~69% — triggering underlying, SCO, and ECO all at once.</div>
+            <div>• Premium is your estimated farmer net cost each year (recalculated at that year's projected price).</div>
+            <div>• Net = indemnity received − premium paid. Cumulative net shows whether the policy "paid off" over time.</div>
+            <div className="mt-2 text-amber-400">⚠️ County yield used as farm proxy. Your individual farm yield may differ significantly from county average — especially on variable terrain like western WI bluffs.</div>
+          </div>
+        )}
       </div>
 
       {/* Summary stats */}
