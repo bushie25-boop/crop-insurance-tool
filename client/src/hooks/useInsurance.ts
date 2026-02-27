@@ -7,6 +7,7 @@ import {
   type PlanType,
   type ECOLevel,
   type UnitStructure,
+  type OptimizerCombo,
   calcFullPremiumSummary,
   calcRevenueGuarantee,
   calcYieldGuarantee,
@@ -16,6 +17,7 @@ import {
   runBacktest,
   summarizeBacktest,
   buildComparisonTable,
+  simulateFarmYields,
 } from '../lib/insurance';
 import { getCountyYields, getPriceHistory } from '../lib/historicalData';
 
@@ -39,6 +41,12 @@ const DEFAULT_INPUTS: InsuranceInputs = {
 export type BacktestWindow = 5 | 10 | 15 | 20 | 25 | 'all';
 export type YieldStability = 'more_stable' | 'average' | 'less_stable';
 
+const STABILITY_FACTOR_MAP: Record<YieldStability, number> = {
+  more_stable: 0.5,
+  average: 1.0,
+  less_stable: 1.3,
+};
+
 export function useInsurance() {
   const [inputs, setInputs] = useState<InsuranceInputs>(DEFAULT_INPUTS);
   const [backtestWindow, setBacktestWindow] = useState<BacktestWindow>(15);
@@ -46,6 +54,7 @@ export function useInsurance() {
   const [yieldStability, setYieldStability] = useState<YieldStability>('average');
   const [clientName, setClientName] = useState('');
   const [farmName, setFarmName] = useState('');
+  const [optimizerResults, setOptimizerResults] = useState<OptimizerCombo[]>([]);
 
   function updateInput<K extends keyof InsuranceInputs>(key: K, value: InsuranceInputs[K]) {
     setInputs(prev => {
@@ -88,13 +97,16 @@ export function useInsurance() {
       return idx >= 0 ? (priceData.harvestPrices[idx] > 0 ? priceData.harvestPrices[idx] : inputs.springPrice) : inputs.springPrice;
     });
 
-    const fullBacktest = runBacktest(inputs, yields, trendAPH, projPrices, harvPrices, startYear);
+    const stabilityFactor = STABILITY_FACTOR_MAP[yieldStability];
+    const allFarmYields = simulateFarmYields(yields, trendAPH, stabilityFactor);
+
+    const fullBacktest = runBacktest(inputs, yields, trendAPH, projPrices, harvPrices, startYear, allFarmYields);
     // Apply window filter — take the most recent N years
     const windowed = backtestWindow === 'all'
       ? fullBacktest
       : fullBacktest.slice(-backtestWindow);
     return windowed;
-  }, [inputs, countyYieldData, priceData, backtestWindow]);
+  }, [inputs, countyYieldData, priceData, backtestWindow, yieldStability]);
 
   const backtestSummary = useMemo(() => summarizeBacktest(backtestYears), [backtestYears]);
 
@@ -142,8 +154,13 @@ export function useInsurance() {
     const wTrend = trendAPH.slice(-n);
     const wProj = projPrices.slice(-n);
     const wHarv = harvPrices.slice(-n);
-    return buildComparisonTable(inputs, wYields, wTrend, wProj, wHarv);
-  }, [inputs, countyYieldData, priceData, backtestWindow]);
+    const stabilityFactor = STABILITY_FACTOR_MAP[yieldStability];
+    const wFarmYields = simulateFarmYields(wYields, wTrend, stabilityFactor);
+    return buildComparisonTable(inputs, wYields, wTrend, wProj, wHarv, wFarmYields);
+  }, [inputs, countyYieldData, priceData, backtestWindow, yieldStability]);
+
+  // Farm yields aligned with backtestYears (for chart display)
+  const farmYields = useMemo(() => backtestYears.map(y => y.farmYield), [backtestYears]);
 
   return {
     inputs,
@@ -173,9 +190,13 @@ export function useInsurance() {
     assumedYield2026,
     setAssumedYield2026,
     assumed2026Row,
+    // Farm yields (simulated, aligned with backtestYears)
+    farmYields,
     // Optimizer
     yieldStability,
     setYieldStability,
+    optimizerResults,
+    setOptimizerResults,
     // Client info
     clientName,
     setClientName,

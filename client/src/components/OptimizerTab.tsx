@@ -14,7 +14,7 @@ interface Props {
 }
 
 const STABILITY_FACTOR: Record<YieldStability, number> = {
-  more_stable: 0.7,
+  more_stable: 0.5,
   average: 1.0,
   less_stable: 1.3,
 };
@@ -38,8 +38,7 @@ const STABILITY_OPTIONS: Array<{ value: YieldStability; label: string; desc: str
 ];
 
 export default function OptimizerTab({ state }: Props) {
-  const { inputs, yieldStability, setYieldStability, countyYieldData, priceData, backtestWindow } = state;
-  const [optimizerResults, setOptimizerResults] = useState<OptimizerCombo[]>([]);
+  const { inputs, yieldStability, setYieldStability, countyYieldData, priceData, backtestWindow, optimizerResults, setOptimizerResults } = state;
   const [running, setRunning] = useState(false);
   const [showAll, setShowAll] = useState(false);
 

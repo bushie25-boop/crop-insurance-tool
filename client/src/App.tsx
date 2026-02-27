@@ -31,6 +31,7 @@ const TABS: Array<{ id: Tab; label: string; icon: string }> = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [printMode, setPrintMode] = useState(false);
   const state = useInsurance();
   const dataSources = useDataSources(state.inputs.county, state.inputs.crop);
 
@@ -38,13 +39,9 @@ export default function App() {
     <div className="min-h-screen bg-slate-900 text-slate-100">
       <style>{`
         @media print {
-          body { background: white !important; color: black !important; }
+          body { background: white !important; }
           .no-print { display: none !important; }
-          #print-report { display: block !important; }
-          @page { margin: 0.5in; }
-        }
-        @media screen {
-          #print-report { display: none !important; }
+          .print-report-overlay { position: static !important; }
         }
       `}</style>
 
@@ -77,7 +74,7 @@ export default function App() {
             <span>·</span>
             <span className="text-cyan-400">{state.inputs.irrigated ? 'Irrigated' : 'Non-Irr'}</span>
             <button
-              onClick={() => window.print()}
+              onClick={() => { setPrintMode(true); setTimeout(() => { window.print(); setPrintMode(false); }, 400); }}
               className="flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition ml-2"
             >
               🖨️ Print Report
@@ -150,7 +147,7 @@ export default function App() {
         )}
       </div>
 
-      <PrintReport state={state} printDate={new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} />
+      <PrintReport state={state} printMode={printMode} printDate={new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} />
     </div>
   );
 }

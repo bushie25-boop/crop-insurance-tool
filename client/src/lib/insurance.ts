@@ -388,10 +388,35 @@ export function getHeatmapColor(indemnity: number, maxIndemnity: number): string
   return 'bg-red-600 text-white';
 }
 
+// ─── Simulated Farm Yields ────────────────────────────────────────────────────
+
+/**
+ * Simulate farm-level yields from county yields based on yield stability.
+ * - more_stable (factor 0.5): farm swings are dampened — good ground, consistent
+ * - average (factor 1.0): farm tracks county directly
+ * - less_stable (factor 1.3): farm swings are amplified — variable soils, bluff ground
+ *
+ * Formula: farmYield = countyTrendAPH + (countyActual - countyTrendAPH) × stabilityFactor
+ * This keeps the trend the same but amplifies or dampens deviations from trend.
+ */
+export function simulateFarmYields(
+  countyYields: number[],
+  countyTrendAPHs: number[],
+  stabilityFactor: number  // 0.5 = more stable, 1.0 = average, 1.3 = less stable
+): number[] {
+  return countyYields.map((actual, i) => {
+    const trend = countyTrendAPHs[i] ?? countyTrendAPHs[countyTrendAPHs.length - 1];
+    const deviation = actual - trend;
+    const simulated = trend + deviation * stabilityFactor;
+    return Math.max(0, Math.round(simulated * 10) / 10);
+  });
+}
+
 // ─── Historical Backtest ──────────────────────────────────────────────────────
 
 export interface BacktestYear {
   year: number;
+  farmYield: number;    // simulated farm yield (or county yield if no simulation)
   countyYield: number;
   countyAPH: number;
   projPrice: number;
@@ -429,7 +454,8 @@ export function runBacktest(
   countyAPHs: number[],      // expected county yield (trend APH) per year
   projPrices: number[],
   harvPrices: number[],
-  startYear: number = 2009
+  startYear: number = 2009,
+  farmYields?: number[]      // optional — if provided, use for underlying; countyYields still used for SCO/ECO
 ): BacktestYear[] {
   return countyYields.map((countyYield, i) => {
     const year = startYear + i;
@@ -439,8 +465,9 @@ export function runBacktest(
 
     const yearInputs: InsuranceInputs = { ...inputs, springPrice: projPrice };
 
-    // Underlying policy uses farm APH (individual-level)
-    const underlyingIndemnity = calcIndemnity(yearInputs, countyYield, harvPrice);
+    // Underlying policy: use simulated farm yield if provided, otherwise county yield
+    const farmYield = farmYields?.[i] ?? countyYield;
+    const underlyingIndemnity = calcIndemnity(yearInputs, farmYield, harvPrice);
     const farmerPremium = calcFarmerPremiumPerAcre(yearInputs);
     const scoPremium = calcSCOFarmerCostPerAcre(yearInputs);
     const ecoPremium = calcECOFarmerCostPerAcre(yearInputs);
@@ -464,7 +491,7 @@ export function runBacktest(
     const expectedRevenue = countyAPH * projPrice;
     const actualRevenue = countyYield * harvPrice;
     const revenueShortfall = expectedRevenue - actualRevenue;
-    const yieldLossBu = countyAPH - countyYield;
+    const yieldLossBu = countyAPH - countyYield;  // county-level for cause analysis
     const yieldLossPct = countyAPH > 0 ? yieldLossBu / countyAPH : 0;
     const priceChangePct = projPrice > 0 ? (harvPrice - projPrice) / projPrice : 0;
     const priceRpUpsideTriggered = harvPrice > projPrice;
@@ -478,6 +505,7 @@ export function runBacktest(
 
     return {
       year,
+      farmYield,
       countyYield,
       countyAPH,
       projPrice,
@@ -571,13 +599,14 @@ export function buildComparisonTable(
   backtestYields: number[],
   backtestAPHs: number[],
   backtestProjPrices: number[],
-  backtestHarvPrices: number[]
+  backtestHarvPrices: number[],
+  farmYields?: number[]
 ): PlanComboRow[] {
   const rows: PlanComboRow[] = PLAN_COMBOS.map(({ planType, coverageLevel }) => {
     const sim: InsuranceInputs = { ...inputs, planType, coverageLevel };
     const { farmerPays, govtPays, gross, subsidyPct } = calcSubsidyBreakdown(sim);
     const guaranteePerAcre = sim.aphYield * coverageLevel * sim.springPrice;
-    const years = runBacktest(sim, backtestYields, backtestAPHs, backtestProjPrices, backtestHarvPrices);
+    const years = runBacktest(sim, backtestYields, backtestAPHs, backtestProjPrices, backtestHarvPrices, 2009, farmYields);
     const summary = summarizeBacktest(years);
     const valueScore = farmerPays > 0 ? summary.triggerRate / farmerPays : 0;
     return {
@@ -638,6 +667,9 @@ export function runOptimizer(
 
   const combos: OptimizerCombo[] = [];
 
+  // Simulate farm yields once — used for all combos' underlying calculation
+  const farmYields = simulateFarmYields(countyYields, countyAPHs, stabilityFactor);
+
   for (const planType of plans) {
     for (const coverageLevel of coverageLevels) {
       for (const unitStructure of units) {
@@ -645,16 +677,12 @@ export function runOptimizer(
           if (scoEnabled && coverageLevel >= 0.86) continue;
           for (const ecoLevel of ecoOptions) {
             const sim: InsuranceInputs = { ...inputs, planType, coverageLevel, unitStructure, scoEnabled, ecoLevel };
-            const years = runBacktest(sim, countyYields, countyAPHs, projPrices, harvPrices);
+            // Pass farmYields for underlying; countyYields still used for SCO/ECO inside runBacktest
+            const years = runBacktest(sim, countyYields, countyAPHs, projPrices, harvPrices, 2009, farmYields);
             const summary = summarizeBacktest(years);
 
-            const adjustedAvgIndemnity = years.reduce((sum, yr) => {
-              const adjUnderlying = yr.underlyingIndemnity * stabilityFactor;
-              return sum + adjUnderlying + yr.scoIndemnity + yr.ecoIndemnity;
-            }, 0) / years.length;
-
             const avgFarmerPremium = summary.avgFarmerPremium;
-            const stabilityAdjustedNet = adjustedAvgIndemnity - avgFarmerPremium;
+            const stabilityAdjustedNet = summary.avgNetPerAcre;
             const worstYearNet = Math.min(...years.map(y => y.netPerAcre));
             const bestYearNet = Math.max(...years.map(y => y.netPerAcre));
 
