@@ -1,8 +1,6 @@
 // IEM (Iowa Environmental Mesonet) SPC Local Storm Reports
 // Covers hail >= 0.75" — much more complete than NOAA Storm Events
-// NWS offices covering our counties:
-//   ARX = La Crosse WI (covers Trempealeau, Buffalo, Jackson WI)
-//   MPX = Minneapolis MN (covers Houston MN, Winona MN)
+// Queries by state (WI + MN) with bbox filter — avoids 10k row limit from WFO queries
 
 export interface HailEvent {
   lat: number;
@@ -15,20 +13,19 @@ export interface HailEvent {
   city: string;
 }
 
-// Bounding box for WI/MN area (loose, for pre-filter)
-const BBOX = { minLat: 43.5, maxLat: 44.8, minLng: -92.0, maxLng: -90.5 };
+// Bounding box for our 5-county region
+const BBOX = { minLat: 43.5, maxLat: 44.8, minLng: -92.0, maxLng: -90.3 };
 
 function inBbox(lat: number, lng: number): boolean {
   return lat >= BBOX.minLat && lat <= BBOX.maxLat &&
          lng >= BBOX.minLng && lng <= BBOX.maxLng;
 }
 
-async function fetchIEMHailYear(wfo: string, year: number): Promise<HailEvent[]> {
-  // IEM LSR GeoJSON endpoint — requires sts/ets date range
-  // NOTE: lsr.php?year= returns 0 results. lsr.geojson?wfo=&sts=&ets= is the correct endpoint.
+async function fetchIEMHailYearState(state: string, year: number): Promise<HailEvent[]> {
+  // Query by state — avoids the 10,000-row alphabetical WFO cutoff bug
   const sts = `${year}-01-01T00:00Z`;
   const ets = `${year}-12-31T23:59Z`;
-  const url = `https://mesonet.agron.iastate.edu/geojson/lsr.geojson?wfo=${wfo}&sts=${sts}&ets=${ets}`;
+  const url = `https://mesonet.agron.iastate.edu/geojson/lsr.geojson?states=${state}&sts=${sts}&ets=${ets}`;
   try {
     const res = await fetch(url);
     if (!res.ok) return [];
@@ -36,9 +33,7 @@ async function fetchIEMHailYear(wfo: string, year: number): Promise<HailEvent[]>
     const events: HailEvent[] = [];
     for (const feature of data.features ?? []) {
       const props = feature.properties ?? {};
-      // Filter to hail only
       if ((props.typetext ?? '').toUpperCase() !== 'HAIL') continue;
-      // magf = numeric float magnitude; magnitude = string fallback
       const sizeIn: number = (props.magf ?? parseFloat(props.magnitude) ?? 0) || 0;
       if (sizeIn < 0.75) continue;
       const lngVal: number = props.lon ?? feature.geometry?.coordinates?.[0];
@@ -52,7 +47,7 @@ async function fetchIEMHailYear(wfo: string, year: number): Promise<HailEvent[]>
         year,
         size: sizeIn,
         county: (props.county ?? '').toUpperCase(),
-        state: props.st ?? props.state ?? '',
+        state: props.st ?? props.state ?? state,
         city: props.city ?? '',
       });
     }
@@ -62,7 +57,7 @@ async function fetchIEMHailYear(wfo: string, year: number): Promise<HailEvent[]>
   }
 }
 
-// Fetch all years for both WFOs — cached in module scope
+// Module-level cache
 let _cache: HailEvent[] | null = null;
 let _loading = false;
 let _callbacks: Array<(events: HailEvent[]) => void> = [];
@@ -77,17 +72,17 @@ export async function loadHailEvents(
   _loading = true;
 
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: currentYear - 2004 }, (_, i) => 2005 + i); // 2005-current
-  const wfos = ['ARX', 'MPX'];
+  const years = Array.from({ length: currentYear - 2004 }, (_, i) => 2005 + i);
+  const states = ['WI', 'MN'];
   const allEvents: HailEvent[] = [];
 
   let done = 0;
-  const total = years.length * wfos.length;
+  const total = years.length * states.length;
 
   await Promise.all(
-    wfos.flatMap(wfo =>
+    states.flatMap(state =>
       years.map(async year => {
-        const events = await fetchIEMHailYear(wfo, year);
+        const events = await fetchIEMHailYearState(state, year);
         allEvents.push(...events);
         done++;
         onProgress?.(Math.round((done / total) * 100));
