@@ -1,138 +1,145 @@
+// SummaryCards.tsx — live-updating summary of guarantees and premiums
 import React from 'react';
-import { useApp } from '../context/AppContext';
-import {
-  calcGuaranteedRevenue,
-  calcPremiumPerAcre,
-  calcGrossPremiumPerAcre,
-  calcGovtSubsidyPerAcre,
-  calcSCOPremiumPerAcre,
-  calcECOPremiumPerAcre,
-  calcBreakevenYield,
-  getFarmerSubsidyPct,
-} from '../lib/insurance';
+import type { InsuranceState } from '../hooks/useInsurance';
 
-const fmt = (n: number, decimals = 2) =>
-  n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-
-interface CardProps {
-  title: string;
-  value: string;
-  sub?: string;
-  accent?: string;
-  icon?: string;
-  detail?: React.ReactNode;
+interface Props {
+  state: InsuranceState;
 }
 
-function Card({ title, value, sub, accent = 'text-blue-400', icon, detail }: CardProps) {
+function fmt(n: number, dec = 2): string {
+  return n.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+
+function fmtPct(n: number): string {
+  return `${Math.round(n * 100)}%`;
+}
+
+export default function SummaryCards({ state }: Props) {
+  const { inputs, premiumSummary, revenueGuarantee, yieldGuarantee, coverageLabel, topCoveragePct } = state;
+  const { underlying, sco, eco, totalFarmerPerAcre, totalFarmerAllAcres } = premiumSummary;
+
+  const guaranteeLabel = inputs.planType === 'YP' ? 'Yield Guarantee' : 'Revenue Guarantee';
+  const guaranteeValue = inputs.planType === 'YP'
+    ? `${fmt(yieldGuarantee, 1)} bu/ac`
+    : `$${fmt(revenueGuarantee)}/ac`;
+  const guaranteeSubtext = inputs.planType === 'YP'
+    ? `$${fmt(yieldGuarantee * inputs.springPrice)}/ac at projected price`
+    : `${inputs.aphYield} bu × ${fmtPct(inputs.coverageLevel)} × $${inputs.springPrice}`;
+
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 shadow-lg flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-slate-400 uppercase tracking-widest">{title}</span>
-        {icon && <span className="text-xl">{icon}</span>}
+    <div className="space-y-3">
+      {/* Coverage label */}
+      <div className="bg-blue-900/40 border border-blue-600 rounded-lg px-4 py-2 text-center">
+        <span className="text-blue-300 font-bold">{coverageLabel}</span>
+        <span className="text-slate-400 text-sm ml-2">(top {topCoveragePct}% covered)</span>
       </div>
-      <div className={`text-3xl font-black ${accent} leading-none`}>{value}</div>
-      {sub && <div className="text-xs text-slate-400">{sub}</div>}
-      {detail && <div className="mt-1 pt-2 border-t border-slate-700">{detail}</div>}
-    </div>
-  );
-}
 
-export default function SummaryCards() {
-  const { inputs } = useApp();
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
 
-  const guaranteed = calcGuaranteedRevenue(inputs);
-  const farmerBasePremium = calcPremiumPerAcre(inputs); // farmer's cost after RMA subsidy
-  const grossBasePremium = calcGrossPremiumPerAcre(inputs);
-  const govtSubsidy = calcGovtSubsidyPerAcre(inputs);
-  const subsidyPct = getFarmerSubsidyPct(inputs.coverageLevel);
-  const scoPremium = calcSCOPremiumPerAcre(inputs);
-  const ecoPremium = calcECOPremiumPerAcre(inputs);
-  const farmerTotal = farmerBasePremium + scoPremium + ecoPremium;
-  const farmerTotalAll = farmerTotal * inputs.acres;
-  const breakevenYield = calcBreakevenYield(inputs);
-
-  const isYP = inputs.planType === 'YP';
-  const guaranteedLabel = isYP
-    ? `${fmt(guaranteed, 1)} bu/ac`
-    : `$${fmt(guaranteed)}/ac`;
-
-  return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <Card
-        icon="🛡️"
-        title={isYP ? 'Guaranteed Yield' : 'Guaranteed Revenue'}
-        value={guaranteedLabel}
-        sub={isYP
-          ? `${Math.round(inputs.coverageLevel * 100)}% of ${inputs.aphYield} bu APH`
-          : `APH × ${Math.round(inputs.coverageLevel * 100)}% × $${inputs.springPrice}`}
-        accent="text-blue-400"
-      />
-
-      <Card
-        icon="💰"
-        title="Your Premium / acre"
-        value={`$${fmt(farmerTotal)}`}
-        accent="text-amber-400"
-        sub={`$${fmt(farmerTotalAll, 0)} total for ${inputs.acres.toLocaleString()} ac`}
-        detail={
-          <div className="space-y-1 text-xs">
-            {/* Subsidy breakdown — the big selling point */}
-            <div className="flex justify-between text-slate-400">
-              <span>Total premium (gross)</span>
-              <span className="text-slate-300">${fmt(grossBasePremium)}/ac</span>
+        {/* Guarantee card */}
+        <div className="bg-slate-800 rounded-xl p-4 col-span-2 md:col-span-1">
+          <div className="text-xs text-slate-400 mb-1">{guaranteeLabel}</div>
+          <div className="text-2xl font-black text-white">{guaranteeValue}</div>
+          <div className="text-xs text-slate-500 mt-1">{guaranteeSubtext}</div>
+          {inputs.planType === 'RP' && (
+            <div className="text-xs text-blue-300 mt-1">
+              ↑ Adjusts up if harvest price rises
             </div>
-            <div className="flex justify-between text-green-400 font-medium">
-              <span>🏛️ Govt pays ({Math.round(subsidyPct * 100)}%)</span>
-              <span className="text-green-300">${fmt(govtSubsidy)}/ac</span>
+          )}
+        </div>
+
+        {/* Underlying premium card */}
+        <div className="bg-slate-800 rounded-xl p-4">
+          <div className="text-xs text-slate-400 mb-2">Underlying Premium</div>
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs text-slate-400">
+              <span>Total actuarial:</span>
+              <span>${fmt(underlying.gross)}/ac</span>
             </div>
-            <div className="flex justify-between text-amber-300 font-bold">
-              <span>💰 Your cost</span>
-              <span>${fmt(farmerBasePremium)}/ac</span>
+            <div className="flex justify-between text-xs text-green-400">
+              <span>🏛️ Govt pays ({fmtPct(underlying.subsidyPct)}):</span>
+              <span>${fmt(underlying.govtPays)}/ac</span>
             </div>
-            {inputs.scoEnabled && (
-              <div className="flex justify-between text-purple-400 mt-1 pt-1 border-t border-slate-700">
-                <span>+ SCO ({Math.round(inputs.coverageLevel*100)}%→86%)</span>
-                <span className="text-purple-300">${fmt(scoPremium)}</span>
-              </div>
-            )}
-            {inputs.ecoLevel !== 'None' && (
-              <div className="flex justify-between text-teal-400">
-                <span>+ {inputs.ecoLevel} (86%→{inputs.ecoLevel === 'ECO-90' ? '90' : '95'}%)</span>
-                <span className="text-teal-300">${fmt(ecoPremium)}</span>
-              </div>
-            )}
-            {/* Fix 4: Disclaimer */}
-            <p className="text-slate-500 italic text-[10px] pt-1">* Estimated. Actual premium determined at policy issuance by RMA.</p>
+            <div className="flex justify-between text-sm font-bold text-white">
+              <span>💰 Your cost:</span>
+              <span>${fmt(underlying.farmerPays)}/ac</span>
+            </div>
           </div>
-        }
-      />
-
-      <Card
-        icon="🔥"
-        title="Max Indemnity / acre"
-        value={`$${fmt(guaranteed)}`}
-        accent="text-red-400"
-        sub="Worst-case total loss payout"
-      />
-
-      <Card
-        icon="⚖️"
-        title="Break-even Yield"
-        value={`${fmt(breakevenYield, 1)} bu/ac`}
-        accent="text-emerald-400"
-        sub={`Payment triggers below ${fmt(breakevenYield, 1)} bu/ac`}
-        detail={
-          <div className="flex items-center gap-2 text-xs">
-            <div className="flex-1 bg-slate-700 rounded-full h-1.5">
-              <div
-                className="bg-emerald-500 h-1.5 rounded-full"
-                style={{ width: `${Math.min(100, (breakevenYield / inputs.aphYield) * 100)}%` }}
-              />
+          {inputs.isBFR && (
+            <div className="mt-1 text-xs text-green-300 bg-green-900/30 rounded px-2 py-1">
+              🎓 BFR subsidy applied
             </div>
-            <span className="text-slate-400">{Math.round((breakevenYield / inputs.aphYield) * 100)}% of APH</span>
+          )}
+        </div>
+
+        {/* SCO card */}
+        {inputs.scoEnabled && (
+          <div className="bg-purple-900/30 border border-purple-700 rounded-xl p-4">
+            <div className="text-xs text-purple-300 mb-2">SCO Add-on (80% subsidized)</div>
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-slate-400">
+                <span>Total actuarial:</span>
+                <span>${fmt(sco.gross)}/ac</span>
+              </div>
+              <div className="flex justify-between text-xs text-green-400">
+                <span>🏛️ Govt pays (80%):</span>
+                <span>${fmt(sco.govtPays)}/ac</span>
+              </div>
+              <div className="flex justify-between text-sm font-bold text-white">
+                <span>💰 Your cost:</span>
+                <span>${fmt(sco.farmerPays)}/ac</span>
+              </div>
+            </div>
+            <div className="text-xs text-purple-300 mt-1">
+              Band: {fmtPct(inputs.coverageLevel)} → 86%
+            </div>
           </div>
-        }
-      />
+        )}
+
+        {/* ECO card */}
+        {inputs.ecoLevel !== 'None' && (
+          <div className="bg-teal-900/30 border border-teal-700 rounded-xl p-4">
+            <div className="text-xs text-teal-300 mb-2">{inputs.ecoLevel} (80% subsidized)</div>
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-slate-400">
+                <span>Total actuarial:</span>
+                <span>${fmt(eco.gross)}/ac</span>
+              </div>
+              <div className="flex justify-between text-xs text-green-400">
+                <span>🏛️ Govt pays (80%):</span>
+                <span>${fmt(eco.govtPays)}/ac</span>
+              </div>
+              <div className="flex justify-between text-sm font-bold text-white">
+                <span>💰 Your cost:</span>
+                <span>${fmt(eco.farmerPays)}/ac</span>
+              </div>
+            </div>
+            <div className="text-xs text-teal-300 mt-1">
+              Band: 86% → {inputs.ecoLevel === 'ECO-90' ? '90%' : '95%'}
+            </div>
+          </div>
+        )}
+
+        {/* Total cost card */}
+        <div className="bg-slate-700 rounded-xl p-4">
+          <div className="text-xs text-slate-400 mb-2">Total Farmer Cost</div>
+          <div className="text-2xl font-black text-yellow-400">${fmt(totalFarmerPerAcre)}/ac</div>
+          <div className="text-slate-300 font-semibold mt-1">
+            ${fmt(totalFarmerAllAcres, 0)} total
+          </div>
+          <div className="text-xs text-slate-500 mt-1">
+            {fmt(inputs.acres, 0)} acres × ${fmt(totalFarmerPerAcre)}/ac
+          </div>
+        </div>
+
+      </div>
+
+      {/* Estimated disclaimer */}
+      <div className="text-xs text-slate-500 text-center">
+        * Estimated premium based on approximate RMA actuarial rates. Actual premium determined at policy issuance.
+        Verify at: <a href="https://ewebapp.rma.usda.gov/apps/costestimator/" target="_blank" rel="noopener noreferrer"
+          className="text-blue-400 hover:underline">ewebapp.rma.usda.gov/apps/costestimator/</a>
+      </div>
     </div>
   );
 }
