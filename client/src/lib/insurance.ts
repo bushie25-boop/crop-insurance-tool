@@ -9,7 +9,50 @@ export type { UnitStructure };
 export type CropType = 'corn' | 'soybeans';
 export type ECOLevel = 'None' | 'ECO-90' | 'ECO-95';
 export type PlanType = 'YP' | 'RP' | 'RP-HPE';
-export type County = 'Trempealeau WI' | 'Buffalo WI' | 'Jackson WI' | 'Houston MN';
+
+export type State = 'WI' | 'MN';
+
+export const STATE_NAMES: Record<State, string> = {
+  WI: 'Wisconsin',
+  MN: 'Minnesota',
+};
+
+// ─── To add a new county ──────────────────────────────────────────────────────
+// 1. Add county name to COUNTY_REGISTRY[state] array
+// 2. Add rate table entry to COUNTY_RATES_CORN[countyKey] and COUNTY_RATES_CORN_IRRIGATED[countyKey]
+// 3. Add yield history to historicalData.ts COUNTY_YIELDS array
+// 4. Add hail events to HAIL_EVENTS_SAMPLE in historicalData.ts
+// That's it — UI, optimizer, and backtest all auto-update.
+
+// Registry — add new counties here, everything else auto-updates
+export const COUNTY_REGISTRY: Record<State, string[]> = {
+  WI: ['Trempealeau', 'Buffalo', 'Jackson'],
+  MN: ['Houston'],
+};
+
+// Full county key = "County State" — used everywhere as the county identifier
+export type County = string; // e.g. "Trempealeau WI", "Buffalo WI", "Houston MN"
+
+export function getCountyKey(county: string, state: State): County {
+  return `${county} ${state}`;
+}
+
+export function getAllCounties(): County[] {
+  return Object.entries(COUNTY_REGISTRY).flatMap(([state, counties]) =>
+    counties.map(c => getCountyKey(c, state as State))
+  );
+}
+
+export function getCountiesForState(state: State): County[] {
+  return (COUNTY_REGISTRY[state] ?? []).map(c => getCountyKey(c, state));
+}
+
+export function parseCounty(countyKey: County): { county: string; state: State } {
+  const parts = countyKey.split(' ');
+  const state = parts[parts.length - 1] as State;
+  const county = parts.slice(0, -1).join(' ');
+  return { county, state };
+}
 
 export interface InsuranceInputs {
   crop: CropType;

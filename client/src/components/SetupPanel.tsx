@@ -1,9 +1,9 @@
 // SetupPanel.tsx — Input controls
 import React, { useState } from 'react';
 import type { InsuranceState } from '../hooks/useInsurance';
-import type { County, CropType, PlanType, ECOLevel, UnitStructure } from '../lib/insurance';
+import type { County, CropType, PlanType, ECOLevel, UnitStructure, State } from '../lib/insurance';
+import { getCountiesForState, parseCounty } from '../lib/insurance';
 
-const COUNTIES: County[] = ['Trempealeau WI', 'Buffalo WI', 'Jackson WI', 'Houston MN'];
 const COVERAGE_LEVELS = [0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85];
 
 interface Props {
@@ -64,12 +64,31 @@ export default function SetupPanel({ state }: Props) {
           </div>
         </div>
 
-        {/* County */}
+        {/* State selector */}
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">State</label>
+          <div className="flex gap-1">
+            {(['WI', 'MN'] as State[]).map(s => (
+              <button key={s}
+                onClick={() => state.updateState(s)}
+                className={`flex-1 py-2 rounded text-sm font-semibold ${state.selectedState === s ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* County selector — filtered by selected state */}
         <div>
           <label className="block text-xs text-slate-400 mb-1">County</label>
-          <select value={inputs.county} onChange={e => updateInput('county', e.target.value as County)}
-            className="w-full bg-slate-700 text-white rounded px-2 py-2 text-sm border border-slate-600">
-            {COUNTIES.map(c => <option key={c} value={c}>{c}</option>)}
+          <select
+            value={inputs.county}
+            onChange={e => updateInput('county', e.target.value as County)}
+            className="w-full bg-slate-700 text-white rounded px-2 py-2 text-sm border border-slate-600"
+          >
+            {getCountiesForState(state.selectedState).map(c => (
+              <option key={c} value={c}>{parseCounty(c).county}</option>
+            ))}
           </select>
         </div>
 

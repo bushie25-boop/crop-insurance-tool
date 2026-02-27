@@ -9,6 +9,8 @@ import {
   type UnitStructure,
   type OptimizerCombo,
   type StabilityScenario,
+  type State,
+  getCountiesForState,
   calcFullPremiumSummary,
   calcRevenueGuarantee,
   calcYieldGuarantee,
@@ -57,6 +59,15 @@ export function useInsurance() {
   const [clientName, setClientName] = useState('');
   const [farmName, setFarmName] = useState('');
   const [optimizerResults, setOptimizerResults] = useState<OptimizerCombo[]>([]);
+  const [selectedState, setSelectedState] = useState<State>('WI');
+
+  function updateState(state: State) {
+    setSelectedState(state);
+    const counties = getCountiesForState(state);
+    if (counties.length > 0) {
+      updateInput('county', counties[0] as County);
+    }
+  }
 
   function updateInput<K extends keyof InsuranceInputs>(key: K, value: InsuranceInputs[K]) {
     setInputs(prev => {
@@ -224,6 +235,9 @@ export function useInsurance() {
     setClientName,
     farmName,
     setFarmName,
+    // State/county selector
+    selectedState,
+    updateState,
   };
 }
 
