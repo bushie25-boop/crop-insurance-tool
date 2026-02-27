@@ -358,14 +358,14 @@ export default function HistoricalBacktest({ state }: Props) {
             />
             <Legend />
             <ReferenceLine y={0} stroke="#64748b" />
-            <Bar dataKey="premium" name="Premium cost" fill="#ef4444" opacity={0.7} />
-            <Bar dataKey="underlying" name="Underlying indemnity" fill="#3b82f6" stackId="indemnity" />
+            <Bar dataKey="underlying" name="Underlying" fill="#3b82f6" stackId="pay" />
             {inputs.scoEnabled && (
-              <Bar dataKey="sco" name="SCO indemnity" fill="#a855f7" stackId="indemnity" />
+              <Bar dataKey="sco" name="SCO" fill="#a855f7" stackId="pay" />
             )}
             {inputs.ecoLevel !== 'None' && (
-              <Bar dataKey="eco" name="ECO indemnity" fill="#14b8a6" stackId="indemnity" />
+              <Bar dataKey="eco" name="ECO" fill="#14b8a6" stackId="pay" />
             )}
+            <Bar dataKey="premium" name="Premium (cost)" fill="#ef4444" opacity={0.8} />
             <Line dataKey="cumulativeNet" name="Cumulative net" stroke="#f59e0b" strokeWidth={2}
               dot={{ fill: '#f59e0b', r: 3 }} type="monotone" />
           </ComposedChart>

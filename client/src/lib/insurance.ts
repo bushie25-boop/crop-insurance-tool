@@ -406,7 +406,12 @@ export function simulateFarmYields(
 ): number[] {
   return countyYields.map((actual, i) => {
     const trend = countyTrendAPHs[i] ?? countyTrendAPHs[countyTrendAPHs.length - 1];
-    const deviation = actual - trend;
+    if (actual >= trend) {
+      // Good year — all stability settings track county actual
+      return actual;
+    }
+    // Bad year — apply stability factor to the downside deviation only
+    const deviation = actual - trend; // negative number
     const simulated = trend + deviation * stabilityFactor;
     return Math.max(0, Math.round(simulated * 10) / 10);
   });
@@ -742,6 +747,9 @@ export function runStabilityComparison(
     { label: 'Less Stable (×1.3)', stability: 'less_stable' as const, stabilityFactor: 1.3 },
   ];
 
+  // Note: SCO/ECO indemnity is county-triggered and does NOT change with stabilityFactor.
+  // Only the underlying policy indemnity changes based on simulated farm yield.
+  // runBacktest handles this correctly — SCO/ECO use countyYield, underlying uses farmYield.
   return scenarios.map(s => {
     const farmYields = simulateFarmYields(countyYields, countyAPHs, s.stabilityFactor);
     const years = runBacktest(inputs, countyYields, countyAPHs, projPrices, harvPrices, startYear, farmYields);
