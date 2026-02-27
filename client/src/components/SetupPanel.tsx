@@ -148,6 +148,21 @@ export default function SetupPanel({ state }: Props) {
           </div>
         </div>
 
+        {/* Irrigated Practice */}
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">
+            Irrigated Practice
+            <span className="text-slate-500 ml-1">(affects actuarial rates)</span>
+          </label>
+          <button onClick={() => updateInput('irrigated', !inputs.irrigated)}
+            className={`w-full py-2 rounded text-sm font-semibold ${inputs.irrigated ? 'bg-cyan-600 text-white' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}>
+            {inputs.irrigated ? '💧 Irrigated' : '🌧 Non-Irrigated'}
+          </button>
+          {inputs.irrigated && inputs.crop === 'soybeans' && (
+            <div className="text-xs text-amber-400 mt-0.5">⚠️ Irrigated rates apply to corn only</div>
+          )}
+        </div>
+
         {/* BFR */}
         <div>
           <label className="block text-xs text-slate-400 mb-1">Beginning Farmer (BFR)?</label>

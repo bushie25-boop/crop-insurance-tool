@@ -33,6 +33,7 @@ const DEFAULT_INPUTS: InsuranceInputs = {
   ecoLevel: 'None',
   isBFR: false,
   yearsInFarming: 1,
+  irrigated: false,
 };
 
 export function useInsurance() {

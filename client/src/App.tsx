@@ -62,6 +62,8 @@ export default function App() {
             {state.inputs.scoEnabled && <span className="text-purple-400">+SCO</span>}
             {state.inputs.ecoLevel !== 'None' && <span className="text-teal-400">+{state.inputs.ecoLevel}</span>}
             {state.inputs.isBFR && <span className="text-green-400 font-bold">BFR</span>}
+            <span>·</span>
+            <span className="text-cyan-400">{state.inputs.irrigated ? 'Irrigated' : 'Non-Irr'}</span>
           </div>
         </div>
 

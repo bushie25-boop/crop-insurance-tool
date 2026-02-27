@@ -25,6 +25,7 @@ export interface InsuranceInputs {
   ecoLevel: ECOLevel;
   isBFR: boolean;         // Beginning Farmer & Rancher
   yearsInFarming: number; // for BFR subsidy calculation
+  irrigated: boolean;     // irrigated vs non-irrigated practice (affects actuarial rates)
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -51,6 +52,19 @@ export const BASE_RATES_CORN: Record<number, number> = {
   0.85: 0.035,
 };
 
+// Irrigated corn rates ~25% lower than non-irrigated (less yield variance)
+export const BASE_RATES_CORN_IRRIGATED: Record<number, number> = {
+  0.50: 0.003,
+  0.55: 0.0045,
+  0.60: 0.006,
+  0.65: 0.0075,
+  0.70: 0.009,
+  0.75: 0.013,
+  0.80: 0.018,
+  0.85: 0.026,
+};
+
+// Soybeans in this region are rarely irrigated — single rate table used for both practices
 // Plan multipliers vs YP baseline (estimates)
 // RP has harvest-price upside risk, hence higher premium
 export const PLAN_MULTIPLIER: Record<PlanType, number> = {
@@ -203,9 +217,10 @@ export function calcLiability(inputs: InsuranceInputs): number {
  * ⚠️ ESTIMATED — uses approximate base rates. Verify at RMA Cost Estimator.
  */
 export function calcGrossPremiumPerAcre(inputs: InsuranceInputs): number {
-  const { crop, coverageLevel, planType, unitStructure, aphYield, springPrice } = inputs;
+  const { crop, coverageLevel, planType, unitStructure, aphYield, springPrice, irrigated } = inputs;
   const key = Math.round(coverageLevel * 100) / 100;
-  const cornRate = BASE_RATES_CORN[key] ?? 0.018;
+  const cornRateTable = (irrigated && crop === 'corn') ? BASE_RATES_CORN_IRRIGATED : BASE_RATES_CORN;
+  const cornRate = cornRateTable[key] ?? 0.018;
   const baseRate = crop === 'soybeans' ? cornRate * 0.9 : cornRate;
   const planMult = PLAN_MULTIPLIER[planType];
   const unitMult = UNIT_MULTIPLIER[unitStructure];
