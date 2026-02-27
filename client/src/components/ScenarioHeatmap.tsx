@@ -1,172 +1,139 @@
+// ScenarioHeatmap.tsx — 2D indemnity heatmap (harvest price × yield)
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
-import { generateHeatmap, calcSCOIndemnity, calcECOIndemnity } from '../lib/insurance';
-import { COUNTY_APH } from '../lib/historicalData';
+import type { InsuranceState } from '../hooks/useInsurance';
+import { getHeatmapColor } from '../lib/insurance';
 
-const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
-function indemnityColor(indemnity: number, max: number): string {
-  if (indemnity === 0) return 'bg-slate-700 hover:bg-slate-600';
-  const r = indemnity / max;
-  if (r < 0.15) return 'bg-yellow-900 hover:bg-yellow-800 border-yellow-700';
-  if (r < 0.35) return 'bg-yellow-600 hover:bg-yellow-500';
-  if (r < 0.60) return 'bg-orange-500 hover:bg-orange-400';
-  return 'bg-red-600 hover:bg-red-500';
+interface Props {
+  state: InsuranceState;
 }
 
-function scoEcoColor(sco: number, eco: number): string {
-  const total = sco + eco;
-  if (total === 0) return '';
-  if (eco > 0) return 'ring-2 ring-teal-400';
-  return 'ring-2 ring-purple-400';
+function fmt(n: number, dec = 0): string {
+  return n.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 }
 
-const PRICE_LABELS_CORN = ['$2.00','$2.50','$3.00','$3.50','$4.00','$4.50','$5.00','$5.50','$6.00'];
-const PRICE_LABELS_SOY  = ['$6','$7','$8','$9','$10','$11','$12','$13','$14','$15','$16'];
-const YIELD_PCTS = [1.2,1.1,1.0,0.9,0.8,0.7,0.6,0.5,0.4];
+export default function ScenarioHeatmap({ state }: Props) {
+  const { inputs, heatmap } = state;
+  const [tooltip, setTooltip] = useState<typeof heatmap[0] | null>(null);
 
-export default function ScenarioHeatmap() {
-  const { inputs } = useApp();
-  const [hovered, setHovered] = useState<{ price: number; yPct: number; ind: number; sco: number; eco: number } | null>(null);
+  const maxIndemnity = Math.max(...heatmap.map(c => c.totalIndemnity), 1);
 
-  const cells = generateHeatmap(inputs);
-  const maxInd = Math.max(...cells.map(c => c.indemnity), 1);
-  const countyAph = COUNTY_APH[inputs.county][inputs.crop];
+  // Get unique prices and yields for axes
+  const prices = [...new Set(heatmap.map(c => c.price))].sort((a, b) => a - b);
+  const yieldPcts = [...new Set(heatmap.map(c => c.yieldPct))].sort((a, b) => b - a); // high to low
 
-  const priceLabels = inputs.crop === 'corn' ? PRICE_LABELS_CORN : PRICE_LABELS_SOY;
-  const prices = inputs.crop === 'corn'
-    ? [2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0]
-    : [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+  function getCell(price: number, yieldPct: number) {
+    return heatmap.find(c => c.price === price && c.yieldPct === yieldPct);
+  }
 
-  // Current price column index
-  const curPriceIdx = prices.reduce((best, p, i) =>
-    Math.abs(p - inputs.springPrice) < Math.abs(prices[best] - inputs.springPrice) ? i : best, 0);
-  const curYieldPct = 1.0;
-  const curYieldIdx = YIELD_PCTS.indexOf(curYieldPct);
+  const coveragePct = inputs.coverageLevel * 100;
 
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-slate-100 font-bold text-base">Scenario Heatmap — Indemnity per Acre</h3>
-        <div className="flex items-center gap-3 text-xs text-slate-400">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-700 inline-block"/>&nbsp;No payment</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-600 inline-block"/>&nbsp;Small</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-500 inline-block"/>&nbsp;Medium</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-600 inline-block"/>&nbsp;Large</span>
-          {inputs.scoEnabled && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border-2 border-purple-400 inline-block"/>&nbsp;+SCO</span>}
-          {inputs.ecoLevel !== 'None' && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border-2 border-teal-400 inline-block"/>&nbsp;+ECO</span>}
-        </div>
-      </div>
+    <div className="bg-slate-800 rounded-xl p-4">
+      <h3 className="text-white font-bold text-lg mb-1">🎯 Scenario Heatmap</h3>
+      <p className="text-xs text-slate-400 mb-3">
+        Indemnity per acre at each harvest price × farm yield combination.
+        Current selection: <span className="text-blue-300">{inputs.planType} {coveragePct}%</span>
+        {inputs.scoEnabled && <span className="text-purple-300"> + SCO</span>}
+        {inputs.ecoLevel !== 'None' && <span className="text-teal-300"> + {inputs.ecoLevel}</span>}
+      </p>
 
       <div className="overflow-x-auto">
-        <div className="inline-block min-w-full">
-          {/* Price axis header */}
-          <div className="flex ml-16 mb-1">
-            {priceLabels.map((p, i) => (
-              <div key={i} className={`flex-1 min-w-[52px] text-center text-xs ${i === curPriceIdx ? 'text-blue-400 font-bold' : 'text-slate-500'}`}>
-                {p}
-                {i === curPriceIdx && <div className="text-blue-400">▼</div>}
-              </div>
-            ))}
-          </div>
-
-          {/* Grid rows */}
-          {YIELD_PCTS.map((yPct, ri) => {
-            const actualYield = inputs.aphYield * yPct;
-            const countyYieldPct = (actualYield / countyAph);
-            return (
-              <div key={yPct} className="flex items-center mb-0.5">
-                <div className={`w-14 text-right pr-2 text-xs ${ri === curYieldIdx ? 'text-blue-400 font-bold' : 'text-slate-500'} flex-shrink-0`}>
-                  {Math.round(yPct * 100)}%
-                  {ri === curYieldIdx && <span className="ml-1">◀</span>}
-                </div>
-                {prices.map((price, ci) => {
-                  const cell = cells.find(c => c.price === price && Math.abs(c.yieldPct - yPct) < 0.01);
-                  const ind = cell?.indemnity ?? 0;
-                  const sco = calcSCOIndemnity(inputs, countyYieldPct);
-                  const eco = calcECOIndemnity(inputs, countyYieldPct);
-                  const isCurrent = ci === curPriceIdx && ri === curYieldIdx;
-                  const ringClass = scoEcoColor(sco, eco);
-
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr>
+              <th className="text-slate-400 text-left px-1 py-1 whitespace-nowrap">
+                Yield % APH ↓ / Harvest Price →
+              </th>
+              {prices.map(p => (
+                <th key={p} className="text-slate-400 font-normal text-center px-1 py-1 whitespace-nowrap">
+                  ${p.toFixed(2)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {yieldPcts.map(yPct => (
+              <tr key={yPct}>
+                <td className="text-slate-400 px-1 py-0.5 whitespace-nowrap">
+                  {Math.round(yPct * 100)}% = {fmt(inputs.aphYield * yPct, 0)} bu
+                  {Math.abs(yPct - inputs.coverageLevel) < 0.01 && (
+                    <span className="text-blue-400 ml-1">← guarantee line</span>
+                  )}
+                </td>
+                {prices.map(price => {
+                  const cell = getCell(price, yPct);
+                  if (!cell) return <td key={price} />;
+                  const colorClass = getHeatmapColor(cell.totalIndemnity, maxIndemnity);
+                  // Show RP guarantee line
+                  const rpGuarantee = inputs.aphYield * inputs.coverageLevel * Math.max(inputs.springPrice, price);
+                  const isAtGuaranteeLine = Math.abs(cell.actualYield * price - rpGuarantee) < rpGuarantee * 0.05;
                   return (
-                    <div
-                      key={price}
-                      onMouseEnter={() => setHovered({ price, yPct, ind, sco, eco })}
-                      onMouseLeave={() => setHovered(null)}
-                      className={`flex-1 min-w-[52px] h-9 mx-0.5 rounded cursor-pointer transition-all duration-100 border border-transparent flex items-center justify-center text-xs font-mono
-                        ${indemnityColor(ind, maxInd)} ${ringClass}
-                        ${isCurrent ? 'outline outline-2 outline-white' : ''}`}
+                    <td key={price}
+                      className={`${colorClass} text-center rounded cursor-pointer transition-all hover:opacity-80 px-1 py-1 relative`}
+                      style={{ minWidth: '52px' }}
+                      onMouseEnter={() => setTooltip(cell)}
+                      onMouseLeave={() => setTooltip(null)}
                     >
-                      {ind > 0 ? `$${fmt(ind)}` : ''}
-                    </div>
+                      {cell.totalIndemnity > 0 ? `$${fmt(cell.totalIndemnity)}` : '—'}
+                      {isAtGuaranteeLine && inputs.planType !== 'YP' && (
+                        <div className="absolute inset-0 border-2 border-blue-400 rounded pointer-events-none" />
+                      )}
+                    </td>
                   );
                 })}
-              </div>
-            );
-          })}
-
-          {/* X-axis label */}
-          <div className="text-center text-xs text-slate-500 mt-2 ml-16">
-            Harvest Price ($/bu) →
-          </div>
-        </div>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      {/* Y-axis label */}
-      <div className="text-xs text-slate-500 mt-1">↑ Yield (% of APH {inputs.aphYield} bu/ac)</div>
+      {/* Legend */}
+      <div className="flex gap-3 mt-3 flex-wrap text-xs">
+        <div className="flex items-center gap-1"><div className="w-4 h-4 rounded bg-slate-700" />No payment</div>
+        <div className="flex items-center gap-1"><div className="w-4 h-4 rounded bg-yellow-500" />Small</div>
+        <div className="flex items-center gap-1"><div className="w-4 h-4 rounded bg-orange-500" />Medium</div>
+        <div className="flex items-center gap-1"><div className="w-4 h-4 rounded bg-red-600" />Large</div>
+        {inputs.planType !== 'YP' && (
+          <div className="flex items-center gap-1"><div className="w-4 h-4 rounded border-2 border-blue-400" />RP guarantee line</div>
+        )}
+      </div>
 
-      {/* Hover tooltip */}
-      {hovered && (
-        <div className="mt-4 bg-slate-900 border border-slate-600 rounded-xl p-4 text-sm">
-          <div className="flex flex-wrap gap-6">
-            <div>
-              <span className="text-slate-400">Harvest Price:</span>{' '}
-              <span className="text-white font-bold">${hovered.price.toFixed(2)}/bu</span>
-            </div>
-            <div>
-              <span className="text-slate-400">Farm Yield:</span>{' '}
-              <span className="text-white font-bold">{fmt(inputs.aphYield * hovered.yPct)} bu/ac ({Math.round(hovered.yPct * 100)}% of APH)</span>
-            </div>
-            <div>
-              <span className="text-slate-400">Underlying Indemnity:</span>{' '}
-              <span className={`font-bold ${hovered.ind > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                ${fmt(hovered.ind)}/ac
-              </span>
+      {/* Tooltip */}
+      {tooltip && (
+        <div className="mt-3 bg-slate-700 rounded-lg p-3 text-sm">
+          <div className="text-white font-bold mb-1">
+            Harvest: ${tooltip.price.toFixed(2)}/bu · Yield: {fmt(tooltip.actualYield, 0)} bu/ac ({Math.round(tooltip.yieldPct * 100)}% of APH)
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+            <div className="bg-blue-900/40 rounded p-2">
+              <div className="text-slate-400">Underlying</div>
+              <div className="text-white font-bold">${fmt(tooltip.indemnity)}/ac</div>
             </div>
             {inputs.scoEnabled && (
-              <div>
-                <span className="text-purple-400">SCO Indemnity:</span>{' '}
-                <span className="text-purple-300 font-bold">${fmt(hovered.sco)}/ac</span>
+              <div className="bg-purple-900/40 rounded p-2">
+                <div className="text-slate-400">SCO</div>
+                <div className="text-white font-bold">${fmt(tooltip.scoIndemnity)}/ac</div>
               </div>
             )}
             {inputs.ecoLevel !== 'None' && (
-              <div>
-                <span className="text-teal-400">{inputs.ecoLevel} Indemnity:</span>{' '}
-                <span className="text-teal-300 font-bold">${fmt(hovered.eco)}/ac</span>
+              <div className="bg-teal-900/40 rounded p-2">
+                <div className="text-slate-400">ECO</div>
+                <div className="text-white font-bold">${fmt(tooltip.ecoIndemnity)}/ac</div>
               </div>
             )}
-            <div>
-              <span className="text-slate-400">Total:</span>{' '}
-              <span className="text-amber-400 font-bold">${fmt(hovered.ind + hovered.sco + hovered.eco)}/ac</span>
+            <div className="bg-green-900/40 rounded p-2">
+              <div className="text-slate-400">Total</div>
+              <div className="text-green-400 font-bold">${fmt(tooltip.totalIndemnity)}/ac</div>
             </div>
           </div>
         </div>
       )}
 
-      {/* SCO/ECO trigger notes */}
+      {/* SCO/ECO note */}
       {(inputs.scoEnabled || inputs.ecoLevel !== 'None') && (
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-          {inputs.scoEnabled && (
-            <div className="bg-purple-950 border border-purple-700 rounded-xl p-3 text-xs text-purple-300">
-              <span className="font-bold">SCO Trigger:</span> County yield drops below 86% of county APH ({Math.round(countyAph * 0.86)} bu/ac).
-              SCO ring appears on cells where county yield would be below this threshold.
-            </div>
-          )}
-          {inputs.ecoLevel !== 'None' && (
-            <div className="bg-teal-950 border border-teal-700 rounded-xl p-3 text-xs text-teal-300">
-              <span className="font-bold">{inputs.ecoLevel} Trigger:</span> County yield drops below {inputs.ecoLevel === 'ECO-90' ? '90' : '95'}% of county APH ({Math.round(countyAph * (inputs.ecoLevel === 'ECO-90' ? 0.90 : 0.95))} bu/ac).
-            </div>
-          )}
+        <div className="mt-2 text-xs text-amber-300">
+          ⚠️ SCO/ECO in heatmap uses farm revenue ratio as proxy for county — actual SCO/ECO triggers on county-level yields.
+          SCO/ECO payments are issued mid-year following the loss year.
         </div>
       )}
     </div>
