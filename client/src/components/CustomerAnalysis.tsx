@@ -33,7 +33,11 @@ interface YearRow {
   farmYield: string; // string so we can have blank inputs
 }
 
-export default function CustomerAnalysis() {
+interface Props {
+  actualPremiums?: Record<number, number | null>;
+}
+
+export default function CustomerAnalysis({ actualPremiums = {} }: Props) {
   const [customerName, setCustomerName] = useState('');
   const [farmName, setFarmName] = useState('');
   const [crop, setCrop] = useState<Crop>('corn');
@@ -133,16 +137,21 @@ export default function CustomerAnalysis() {
     return COVERAGE_LEVELS.map(cov => {
       const ydata = calcYearPayments(calcAPH, cov);
       const withFarm = ydata.filter((_, i) => rows[i].farmYield !== '');
-      const totalPrem = withFarm.reduce((s, r) => s + r.premium, 0) * calibFactor;
+      // Use actual quoted premium if available, otherwise use tool estimate × calibFactor
+      const quotedPrem = actualPremiums[cov] ?? null;
+      const annualPrem = quotedPrem !== null
+        ? quotedPrem
+        : (withFarm.length > 0 ? withFarm.reduce((s, r) => s + r.premium, 0) / withFarm.length * calibFactor : 0);
+      const totalPrem = annualPrem * withFarm.length;
       const totalIndem = withFarm.reduce((s, r) => s + r.rp + r.sco + r.eco, 0);
       const netCost = totalPrem - totalIndem;
       const trigYears = withFarm.filter(r => r.triggered).length;
       const yearsCount = withFarm.length;
-      const annualPrem = yearsCount > 0 ? totalPrem / yearsCount : 0;
-      const bestPayout = Math.max(...withFarm.map(r => r.rp + r.sco + r.eco));
-      return { cov, totalPrem, totalIndem, netCost, trigYears, yearsCount, annualPrem, bestPayout };
+      const bestPayout = withFarm.length > 0 ? Math.max(...withFarm.map(r => r.rp + r.sco + r.eco)) : 0;
+      const usingActual = quotedPrem !== null;
+      return { cov, totalPrem, totalIndem, netCost, trigYears, yearsCount, annualPrem, bestPayout, usingActual };
     });
-  }, [calcAPH, rows, county, crop, calibFactor]);
+  }, [calcAPH, rows, county, crop, calibFactor, actualPremiums]);
 
   const bestCov = covComparison.reduce((best, c) => c.netCost < best.netCost ? c : best, covComparison[0]);
 
@@ -367,6 +376,7 @@ export default function CustomerAnalysis() {
                     <th key={c.cov} className={`py-2 text-right ${c.cov === bestCov.cov ? 'text-yellow-400' : ''}`}>
                       {(c.cov * 100).toFixed(0)}% RP
                       {c.cov === bestCov.cov && ' ⭐'}
+                      {c.usingActual && <div className="text-xs text-green-400 font-normal">actual quote</div>}
                     </th>
                   ))}
                 </tr>

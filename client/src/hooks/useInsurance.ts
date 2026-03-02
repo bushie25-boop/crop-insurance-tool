@@ -59,6 +59,10 @@ export function useInsurance() {
   const [yieldStability, setYieldStability] = useState<YieldStability>('average');
   const [clientName, setClientName] = useState('');
   const [farmName, setFarmName] = useState('');
+  // Actual RMA quoted premiums (producer net, w/ SCO + ECO) — entered by agent
+  const [actualPremiums, setActualPremiums] = useState<Record<number, number | null>>({
+    0.70: null, 0.75: null, 0.80: null, 0.85: null,
+  });
   const [optimizerResults, setOptimizerResults] = useState<OptimizerCombo[]>([]);
   const [selectedState, setSelectedState] = useState<State>('WI');
 
@@ -247,6 +251,9 @@ export function useInsurance() {
     // State/county selector
     selectedState,
     updateState,
+    // Actual quoted premiums
+    actualPremiums,
+    setActualPremiums,
   };
 }
 

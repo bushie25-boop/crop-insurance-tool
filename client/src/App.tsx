@@ -17,6 +17,7 @@ import HailMap from './components/HailMap';
 import OptimizerTab from './components/OptimizerTab';
 import HailQuoter from './components/HailQuoter';
 import CustomerAnalysis from './components/CustomerAnalysis';
+import PremiumQuoteEntry from './components/PremiumQuoteEntry';
 import PrintReport from './components/PrintReport';
 import PrintModal, { type PrintSections } from './components/PrintModal';
 
@@ -114,6 +115,14 @@ export default function App() {
         <OBBBABanner />
         {activeTab === 'overview' && <KeyDatesWidget />}
         {activeTab === 'overview' && <SetupPanel state={state} />}
+        {activeTab === 'overview' && (
+          <PremiumQuoteEntry
+            actualPremiums={state.actualPremiums}
+            setActualPremiums={state.setActualPremiums}
+            crop={state.inputs.crop}
+            county={state.inputs.county}
+          />
+        )}
 
         {/* Tab content */}
         {activeTab === 'overview' && (
@@ -164,7 +173,7 @@ export default function App() {
           <OptimizerTab state={state} dataSources={dataSources} />
         )}
         {activeTab === 'customer' && (
-          <CustomerAnalysis />
+          <CustomerAnalysis actualPremiums={state.actualPremiums} />
         )}
       </div>
 
