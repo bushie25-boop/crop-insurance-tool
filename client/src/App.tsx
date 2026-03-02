@@ -16,10 +16,11 @@ import DataSourcesPanel from './components/DataSourcesPanel';
 import HailMap from './components/HailMap';
 import OptimizerTab from './components/OptimizerTab';
 import HailQuoter from './components/HailQuoter';
+import CustomerAnalysis from './components/CustomerAnalysis';
 import PrintReport from './components/PrintReport';
 import PrintModal, { type PrintSections } from './components/PrintModal';
 
-type Tab = 'overview' | 'scenarios' | 'backtest' | 'prices' | 'quote' | 'hail' | 'hail-quote' | 'optimizer';
+type Tab = 'overview' | 'scenarios' | 'backtest' | 'prices' | 'quote' | 'hail' | 'hail-quote' | 'optimizer' | 'customer';
 
 const TABS: Array<{ id: Tab; label: string; icon: string }> = [
   { id: 'overview',   label: 'Overview',         icon: '🏠' },
@@ -30,6 +31,7 @@ const TABS: Array<{ id: Tab; label: string; icon: string }> = [
   { id: 'hail',       label: 'Hail Map',          icon: '🌩️' },
   { id: 'hail-quote', label: 'Hail Quote',         icon: '🌩️' },
   { id: 'optimizer',  label: 'Optimizer',         icon: '🎯' },
+  { id: 'customer',   label: 'Customer Analysis', icon: '👤' },
 ];
 
 export default function App() {
@@ -160,6 +162,9 @@ export default function App() {
 
         {activeTab === 'optimizer' && (
           <OptimizerTab state={state} dataSources={dataSources} />
+        )}
+        {activeTab === 'customer' && (
+          <CustomerAnalysis />
         )}
       </div>
 
