@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { getCountyYields, CORN_PRICES, SOYBEAN_PRICES } from '../lib/historicalData';
-import { calcGrossPremiumPerAcre, type InsuranceInputs } from '../lib/insurance';
-import { SUBSIDY_BU_OU } from '../lib/subsidySchedule';
+import { calcFarmerPremiumPerAcre, calcSCOFarmerCostPerAcre, calcECOFarmerCostPerAcre, type InsuranceInputs } from '../lib/insurance';
 
 type County = 'Trempealeau WI' | 'Buffalo WI' | 'Jackson WI' | 'Houston MN' | 'Winona MN';
 type Crop = 'corn' | 'soybeans';
@@ -28,9 +27,8 @@ function getPremPerAcre(aph: number, cov: number, county: County, crop: Crop, pr
     springPrice: projPrice, scoEnabled: true, ecoLevel: 'ECO-95',
     isBFR: false, yearsInFarming: 10, irrigated: false,
   };
-  const gross = calcGrossPremiumPerAcre(inputs);
-  const subsidy = SUBSIDY_BU_OU[cov] ?? 0.48;
-  return gross * (1 - subsidy);
+  // Base RP + SCO + ECO farmer net premium
+  return calcFarmerPremiumPerAcre(inputs) + calcSCOFarmerCostPerAcre(inputs) + calcECOFarmerCostPerAcre(inputs);
 }
 
 interface YearRow { year: number; farmYield: string; }
